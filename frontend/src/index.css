@@ -1,0 +1,114 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --c-bg: #FFFFFF;
+  --c-fg: #000000;
+  --c-muted: #9A9A9A;
+  --c-outline: #E6E6E6;
+  --c-hover: rgba(0,0,0,0.05);
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+    'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--c-fg);
+  background-color: var(--c-bg);
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+h1 {
+  font-size: 24px;
+}
+
+h2 {
+  font-size: 20px;
+}
+
+/* Links */
+a {
+  color: var(--c-fg);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Buttons */
+.btn {
+  @apply px-4 py-2 border border-fg rounded-md transition-all;
+}
+
+.btn:hover {
+  @apply bg-fg text-bg;
+}
+
+.btn:active {
+  @apply scale-95;
+}
+
+/* Layout */
+.container-narrow {
+  @apply max-w-content mx-auto px-4;
+}
+
+/* Feed Cards */
+.feed-card {
+  @apply border-b border-outline hover:bg-hover transition-colors p-4;
+}
+
+/* Avatar sizes */
+.avatar-sm {
+  @apply w-8 h-8 rounded-full;
+}
+
+.avatar-md {
+  @apply w-10 h-10 rounded-full;
+}
+
+/* Motion */
+.hover-scale {
+  @apply transition-transform hover:scale-105;
+}
+
+.active-scale {
+  @apply transition-transform active:scale-95;
+}
+
+/* Article content */
+.article-content {
+  @apply prose max-w-none;
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+  
+  h1 {
+    font-size: 22px;
+  }
+  
+  h2 {
+    font-size: 18px;
+  }
+  
+  .avatar-md {
+    @apply w-8 h-8;
+  }
+}

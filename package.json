@@ -1,0 +1,34 @@
+{
+  "name": "mercury-mern",
+  "version": "1.0.0",
+  "description": "MERN Stack Application with TypeScript",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd Backend && npm run dev",
+    "client": "cd frontend && npm start",
+    "install-all": "npm install && cd Backend && npm install && cd ../frontend && npm install",
+    "build": "cd Backend && npm run build && cd ../frontend && npm run build",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "seed": "cd Backend && npm run seed"
+  },
+  "keywords": [
+    "mern",
+    "mongodb",
+    "express",
+    "react",
+    "node",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/jsonwebtoken": "^9.0.9",
+    "bcrypt": "^6.0.0",
+    "concurrently": "^8.2.2",
+    "cookie-parser": "^1.4.7",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
