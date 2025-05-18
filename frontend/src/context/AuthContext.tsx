@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import authApi from '../api/authApi';
-import api, { setTokens, clearTokens, getAccessToken } from '../lib/api';
+import api, { setTokens, clearTokens, getAccessToken, getRefreshToken, refreshAccessToken } from '../lib/api';
+import { 
+  initSessionPersistence, 
+  performProactiveRefresh, 
+  recordTokenRefresh, 
+  setAuthCheckStatus 
+} from '../lib/sessionPersistence';
 
 // Define user type
 export interface User {
@@ -36,35 +42,116 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Check if user is logged in on mount
   useEffect(() => {
     const checkAuthStatus = async () => {
+      setAuthCheckStatus('pending');
+      
       try {
         // Check if we have a token
         const token = getAccessToken();
+        const refreshToken = getRefreshToken();
         
         if (!token) {
+          // If no access token but we have a refresh token, try to refresh
+          if (refreshToken) {
+            try {
+              console.log('No access token but refresh token exists, attempting to refresh');
+              
+              // Try to refresh the token
+              const refreshed = await performProactiveRefresh();
+              
+              if (refreshed) {
+                // Successfully refreshed, now fetch user profile
+                const response = await api.get('/users/me');
+                setCurrentUser(response.data);
+                console.log('Successfully refreshed token and fetched user profile');
+                setAuthCheckStatus('success');
+                recordTokenRefresh();
+              } else {
+                console.log('Token refresh not performed or failed');
+                setAuthCheckStatus('failed');
+              }
+            } catch (refreshError: any) {
+              console.error('Failed to refresh token:', refreshError);
+              // Only clear tokens if it's an authentication error
+              if (refreshError.response && (
+                refreshError.response.status === 401 || // Unauthorized
+                refreshError.response.status === 403    // Forbidden
+              )) {
+                console.log('Authentication error during token refresh, clearing tokens');
+                clearTokens();
+              }
+              setAuthCheckStatus('failed');
+            }
+          } else {
+            console.log('No tokens available, user is not logged in');
+            setAuthCheckStatus('failed');
+          }
+          
           setUserLoading(false);
           return;
         }
         
         // Fetch user profile using axios instance
-        const response = await api.get('/users/me');
-        setCurrentUser(response.data);
-      } catch (error: any) {
-        console.error('Error checking auth status:', error);
-        
-        // Clear tokens for authentication errors and bad requests
-        // This prevents issues with malformed tokens or invalid requests
-        if (error.response && (
-            error.response.status === 400 || // Bad Request
-            error.response.status === 401 || // Unauthorized
-            error.response.status === 403    // Forbidden
-          )) {
-          console.log('Authentication error or bad request, clearing tokens');
-          clearTokens();
-        } else {
-          console.log('Non-authentication error, keeping tokens');
-          // For other errors (network, server errors), keep the tokens
-          // This prevents logout on temporary issues
+        try {
+          const response = await api.get('/users/me');
+          setCurrentUser(response.data);
+          console.log('Successfully fetched user profile');
+          setAuthCheckStatus('success');
+          
+          // If we successfully fetched the profile, record the token refresh time
+          // This helps with the proactive refresh mechanism
+          recordTokenRefresh();
+        } catch (profileError: any) {
+          console.error('Error fetching user profile:', profileError);
+          
+          // Only clear tokens for specific authentication errors
+          // This prevents logout on temporary issues or network errors
+          if (profileError.response && (
+              profileError.response.status === 401 || // Unauthorized
+              profileError.response.status === 403    // Forbidden
+            )) {
+            console.log('Authentication error, attempting to refresh token');
+            
+            // Try to refresh the token before clearing
+            try {
+              const refreshed = await performProactiveRefresh();
+              
+              if (refreshed) {
+                // Successfully refreshed, now fetch user profile
+                const response = await api.get('/users/me');
+                setCurrentUser(response.data);
+                console.log('Successfully refreshed token and fetched user profile');
+                setAuthCheckStatus('success');
+              } else {
+                console.log('Token refresh not performed or failed');
+                setAuthCheckStatus('failed');
+              }
+            } catch (refreshError: any) {
+              console.error('Failed to refresh token:', refreshError);
+              // Only clear tokens if it's an authentication error
+              if (refreshError.response && (
+                refreshError.response.status === 401 || // Unauthorized
+                refreshError.response.status === 403    // Forbidden
+              )) {
+                console.log('Authentication error during token refresh, clearing tokens');
+                clearTokens();
+              }
+              setAuthCheckStatus('failed');
+            }
+          } else if (profileError.response && profileError.response.status === 400) {
+            // For bad requests, we might have a malformed token
+            console.log('Bad request error, clearing tokens');
+            clearTokens();
+            setAuthCheckStatus('failed');
+          } else {
+            console.log('Non-authentication error, keeping tokens');
+            // For other errors (network, server errors), keep the tokens
+            // This prevents logout on temporary issues
+            setAuthCheckStatus('failed');
+          }
         }
+      } catch (error: any) {
+        console.error('Error in auth check process:', error);
+        setAuthCheckStatus('failed');
       } finally {
         setUserLoading(false);
       }
@@ -95,10 +182,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Save tokens
       setTokens(response.accessToken, response.refreshToken);
       
+      // Record token refresh time
+      recordTokenRefresh();
+      
       // Set user
       setCurrentUser(response.user);
+      
+      // Update auth check status
+      setAuthCheckStatus('success');
     } catch (error: any) {
       console.error('Login error:', error.message);
+      setAuthCheckStatus('failed');
       throw error;
     }
   };
@@ -120,8 +214,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Save tokens
       setTokens(response.accessToken, response.refreshToken);
       
+      // Record token refresh time
+      recordTokenRefresh();
+      
       // Set user
       setCurrentUser(response.user);
+      
+      // Update auth check status
+      setAuthCheckStatus('success');
     } catch (error: any) {
       console.error('Registration error:', error);
       
@@ -132,6 +232,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error response headers:', error.response.headers);
       }
       
+      setAuthCheckStatus('failed');
       throw error;
     }
   };
@@ -146,6 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clear user and tokens regardless of API success
       setCurrentUser(null);
       clearTokens();
+      setAuthCheckStatus('failed');
     }
   };
 

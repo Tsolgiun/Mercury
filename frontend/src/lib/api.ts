@@ -1,4 +1,6 @@
 import axios from 'axios';
+// Import the session persistence functions
+import { recordTokenRefresh } from './sessionPersistence';
 
 // Base URL for API requests
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -51,6 +53,7 @@ export const clearTokens = (): void => {
   localStorage.removeItem(REFRESH_TOKEN_KEY);
 };
 
+
 /**
  * Refresh the access token using the refresh token
  * @returns New access token and refresh token
@@ -62,44 +65,80 @@ export const refreshAccessToken = async (): Promise<{ accessToken: string; refre
     throw new Error('No refresh token available');
   }
   
-  try {
-    // Use a new axios instance to avoid interceptors that might cause infinite loops
-    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken }, {
-      // Set a shorter timeout for refresh requests
-      timeout: 5000
-    });
+  // Track refresh attempts to prevent infinite loops
+  const MAX_REFRESH_ATTEMPTS = 3;
+  let attempts = 0;
+  let lastError: any = null;
+  
+  while (attempts < MAX_REFRESH_ATTEMPTS) {
+    attempts++;
     
-    // Check if the response contains the expected data
-    if (!response.data || !response.data.accessToken || !response.data.refreshToken) {
-      console.error('Invalid refresh token response:', response.data);
-      throw new Error('Invalid refresh token response');
+    try {
+      console.log(`Token refresh attempt ${attempts}/${MAX_REFRESH_ATTEMPTS}`);
+      
+      // Use a new axios instance to avoid interceptors that might cause infinite loops
+      const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken }, {
+        // Set a shorter timeout for refresh requests
+        timeout: 5000
+      });
+      
+      // Check if the response contains the expected data
+      if (!response.data || !response.data.accessToken || !response.data.refreshToken) {
+        console.error('Invalid refresh token response:', response.data);
+        throw new Error('Invalid refresh token response');
+      }
+      
+      const { accessToken, refreshToken: newRefreshToken } = response.data;
+      
+      // Update tokens in local storage
+      setTokens(accessToken, newRefreshToken);
+      
+      // Record the token refresh time for session persistence
+      recordTokenRefresh();
+      
+      console.log('Token refresh successful');
+      return { accessToken, refreshToken: newRefreshToken };
+    } catch (error: any) {
+      lastError = error;
+      console.error(`Token refresh attempt ${attempts} failed:`, error.message);
+      
+      // If it's a network error or server error (5xx), retry after a delay
+      if (!error.response || (error.response && error.response.status >= 500)) {
+        const delay = Math.min(1000 * attempts, 3000); // Exponential backoff with max 3 seconds
+        console.log(`Retrying after ${delay}ms delay...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // For authentication errors (401, 403), no need to retry
+      if (error.response && (
+          error.response.status === 401 || 
+          error.response.status === 403
+        )) {
+        console.log('Authentication error during token refresh, clearing tokens');
+        clearTokens();
+        break;
+      }
+      
+      // For other errors, no need to retry
+      break;
     }
-    
-    const { accessToken, refreshToken: newRefreshToken } = response.data;
-    
-    // Update tokens in local storage
-    setTokens(accessToken, newRefreshToken);
-    
-    return { accessToken, refreshToken: newRefreshToken };
-  } catch (error: any) {
-    console.error('Token refresh failed:', error.message);
-    
-    // Only clear tokens for authentication errors (401, 403)
-    // This prevents logout on network issues or server errors
-    if (error.response && (
-        error.response.status === 401 || 
-        error.response.status === 403
-      )) {
-      console.log('Authentication error during token refresh, clearing tokens');
-      clearTokens();
-    } else {
-      console.log('Non-authentication error during token refresh, keeping tokens');
-      // For network errors or server errors, we might want to keep the tokens
-      // and let the user try again later
-    }
-    
-    throw error;
   }
+  
+  // If we've exhausted all attempts, only clear tokens for authentication errors
+  if (lastError && lastError.response && (
+      lastError.response.status === 401 || 
+      lastError.response.status === 403
+    )) {
+    console.log('Authentication error after all refresh attempts, clearing tokens');
+    clearTokens();
+  } else if (attempts >= MAX_REFRESH_ATTEMPTS) {
+    console.log('Max refresh attempts reached, but keeping tokens for non-authentication errors');
+    // For network errors or server errors, we keep the tokens
+    // and let the user try again later
+  }
+  
+  throw lastError || new Error('Failed to refresh token after multiple attempts');
 };
 
 // Add auth token to requests
@@ -135,6 +174,13 @@ api.interceptors.response.use(
     
     // If error is 401 (Unauthorized) and we haven't tried to refresh the token yet
     if (error.response.status === 401 && !originalRequest._retry) {
+      // Check if we have a refresh token before attempting to refresh
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) {
+        console.log('No refresh token available, cannot refresh access token');
+        return Promise.reject(error);
+      }
+      
       originalRequest._retry = true;
       
       try {
@@ -174,6 +220,8 @@ api.interceptors.response.use(
           }));
         } else {
           console.log('Not dispatching auth-error for non-authentication error');
+          // For network errors or server errors, don't dispatch auth-error
+          // This prevents logout on temporary issues
         }
         
         return Promise.reject(refreshError);
@@ -307,6 +355,13 @@ export async function apiRequest<T = any>(
     
     // Handle 401 Unauthorized (token expired)
     if (response.status === 401) {
+      // Check if we have a refresh token before attempting to refresh
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) {
+        console.log('No refresh token available in apiRequest, cannot refresh access token');
+        throw new Error('Authentication required. Please log in again.');
+      }
+      
       try {
         console.log('Attempting to refresh token in apiRequest due to 401 response');
         // Try to refresh the token
@@ -319,11 +374,32 @@ export async function apiRequest<T = any>(
         };
         
         console.log('Token refreshed successfully in apiRequest, retrying original request');
-        const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, options);
         
-        if (!retryResponse.ok) {
-          const errorData = await retryResponse.json().catch(() => ({}));
-          throw new Error(errorData.message || `API request failed with status ${retryResponse.status}`);
+        // Add retry with exponential backoff for network issues
+        let retryAttempts = 0;
+        const MAX_RETRY_ATTEMPTS = 3;
+        let retryResponse;
+        
+        while (retryAttempts < MAX_RETRY_ATTEMPTS) {
+          try {
+            retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, options);
+            break; // If successful, exit the loop
+          } catch (retryError) {
+            retryAttempts++;
+            if (retryAttempts >= MAX_RETRY_ATTEMPTS) {
+              throw retryError; // If max attempts reached, throw the error
+            }
+            
+            // Wait with exponential backoff before retrying
+            const delay = Math.min(1000 * Math.pow(2, retryAttempts), 5000);
+            console.log(`Network error during retry, attempt ${retryAttempts}/${MAX_RETRY_ATTEMPTS}. Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+        
+        if (!retryResponse || !retryResponse.ok) {
+          const errorData = await (retryResponse?.json().catch(() => ({})) || {});
+          throw new Error(errorData.message || `API request failed with status ${retryResponse?.status || 'unknown'}`);
         }
         
         return await retryResponse.json();
@@ -339,6 +415,8 @@ export async function apiRequest<T = any>(
           clearTokens();
         } else {
           console.log('Non-authentication error during token refresh in apiRequest, keeping tokens');
+          // For network errors or server errors, we keep the tokens
+          // and let the user try again later
         }
         
         throw refreshError;

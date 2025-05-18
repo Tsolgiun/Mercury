@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { AuthProvider } from './context/AuthContext';
 import { PostProvider } from './context/PostContext';
 import { SocialProvider } from './context/SocialContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { initSessionPersistence } from './lib/sessionPersistence';
 
 // Pages
 import Home from './pages/Home';
@@ -65,6 +66,10 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     </>
   );
 };
+
+// Initialize session persistence
+// This is done outside of components to ensure it runs once
+initSessionPersistence();
 
 // Main App component
 const AppContent: React.FC = () => {
