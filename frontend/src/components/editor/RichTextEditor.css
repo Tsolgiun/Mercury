@@ -156,7 +156,7 @@
 }
 
 .rich-text-editor .ProseMirror img {
-  max-width: 100%;
+  max-width: 60%;
   height: auto;
   border-radius: 0.375rem;
   margin: 1rem 0;
