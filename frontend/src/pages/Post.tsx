@@ -212,7 +212,7 @@ const Post: React.FC = () => {
             <img 
               src={post.coverImage} 
               alt={post.title || 'Cover image'} 
-              className="w-full h-64 object-cover rounded-lg"
+              className="max-w-[85%] mx-auto rounded-lg"
             />
           </div>
         )}

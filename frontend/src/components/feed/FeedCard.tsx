@@ -116,7 +116,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ post }) => {
               <img 
                 src={post.coverImage} 
                 alt="Post cover" 
-                className="w-full h-40 object-cover rounded"
+                className="max-w-[85%] mx-auto rounded"
               />
             </div>
           )}

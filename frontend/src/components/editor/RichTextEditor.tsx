@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useEditor, EditorContent, BubbleMenu, FloatingMenu } from '@tiptap/react';
+import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
@@ -8,7 +8,6 @@ import TextAlign from '@tiptap/extension-text-align';
 import CodeBlock from '@tiptap/extension-code-block';
 import { Block } from '../../context/PostContext';
 import DragHandle from './extensions/DragHandle';
-import SlashCommands from './extensions/SlashCommands';
 import './RichTextEditor.css';
 
 // Icons
@@ -28,6 +27,9 @@ import {
   RiAlignLeft,
   RiAlignCenter,
   RiAlignRight,
+  RiFileCodeLine,
+  RiSeparator,
+  RiText,
 } from 'react-icons/ri';
 
 interface RichTextEditorProps {
@@ -198,7 +200,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialBlocks = [], onC
     extensions: [
       StarterKit,
       Placeholder.configure({
-        placeholder: 'Type / for commands...',
+        placeholder: 'Start writing...',
+        showOnlyWhenEditable: true,
+        showOnlyCurrent: false,
       }),
       Image.configure({
         inline: false,
@@ -214,7 +218,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialBlocks = [], onC
         languageClassPrefix: 'language-',
       }),
       DragHandle,
-      SlashCommands,
     ],
     content: getInitialContent(),
     onUpdate: ({ editor }) => {
@@ -224,245 +227,256 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ initialBlocks = [], onC
     },
   });
 
-  // Handle slash commands
-  const [showSlashMenu, setShowSlashMenu] = useState(false);
-  const [slashMenuPosition, setSlashMenuPosition] = useState({ x: 0, y: 0 });
-  const [slashCommand, setSlashCommand] = useState('');
+  // State for editor focus
+  const [isFocused, setIsFocused] = useState(false);
+  
+  // Handle editor focus and blur
+  useEffect(() => {
+    if (!editor) return;
 
+    const handleFocus = () => {
+      setIsFocused(true);
+    };
+
+    const handleBlur = () => {
+      setIsFocused(false);
+    };
+
+    editor.on('focus', handleFocus);
+    editor.on('blur', handleBlur);
+
+    return () => {
+      editor.off('focus', handleFocus);
+      editor.off('blur', handleBlur);
+    };
+  }, [editor]);
+
+  // Handle keyboard shortcuts
   useEffect(() => {
     if (!editor) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '/') {
-        const { view } = editor;
-        const { state } = view;
-        const { selection } = state;
-        const { $from } = selection;
-        
-        // Get coordinates for slash menu
-        const coords = view.coordsAtPos($from.pos);
-        setSlashMenuPosition({ x: coords.left, y: coords.bottom });
-        setShowSlashMenu(true);
-        setSlashCommand('');
-      } else if (e.key === 'Escape' && showSlashMenu) {
-        setShowSlashMenu(false);
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (showSlashMenu && e.key !== '/') {
-        if (e.key === 'Escape') {
-          setShowSlashMenu(false);
-        } else {
-          // Update slash command
-          const text = editor.getText();
-          const lastSlashIndex = text.lastIndexOf('/');
-          if (lastSlashIndex !== -1) {
-            setSlashCommand(text.slice(lastSlashIndex + 1));
-          }
+      // Keyboard shortcuts
+      if (e.metaKey || e.ctrlKey) {
+        switch (e.key) {
+          case 'b':
+            e.preventDefault();
+            editor.chain().focus().toggleBold().run();
+            break;
+          case 'i':
+            e.preventDefault();
+            editor.chain().focus().toggleItalic().run();
+            break;
+          case '1':
+            e.preventDefault();
+            editor.chain().focus().toggleHeading({ level: 1 }).run();
+            break;
+          case '2':
+            e.preventDefault();
+            editor.chain().focus().toggleHeading({ level: 2 }).run();
+            break;
+          case '3':
+            e.preventDefault();
+            editor.chain().focus().toggleHeading({ level: 3 }).run();
+            break;
         }
       }
     };
 
     editor.view.dom.addEventListener('keydown', handleKeyDown);
-    editor.view.dom.addEventListener('keyup', handleKeyUp);
 
     return () => {
       editor.view.dom.removeEventListener('keydown', handleKeyDown);
-      editor.view.dom.removeEventListener('keyup', handleKeyUp);
     };
-  }, [editor, showSlashMenu]);
+  }, [editor]);
 
-  // Slash menu commands
-  const slashCommands = [
-    {
-      title: 'Text',
-      description: 'Just start writing with plain text.',
-      icon: <RiAlignLeft className="w-5 h-5" />,
-      action: () => {
-        editor?.chain().focus().setParagraph().run();
-        setShowSlashMenu(false);
-      },
-    },
-    {
-      title: 'Heading 1',
-      description: 'Large section heading.',
-      icon: <RiH1 className="w-5 h-5" />,
-      action: () => {
-        editor?.chain().focus().setHeading({ level: 1 }).run();
-        setShowSlashMenu(false);
-      },
-    },
-    {
-      title: 'Heading 2',
-      description: 'Medium section heading.',
-      icon: <RiH2 className="w-5 h-5" />,
-      action: () => {
-        editor?.chain().focus().setHeading({ level: 2 }).run();
-        setShowSlashMenu(false);
-      },
-    },
-    {
-      title: 'Heading 3',
-      description: 'Small section heading.',
-      icon: <RiH3 className="w-5 h-5" />,
-      action: () => {
-        editor?.chain().focus().setHeading({ level: 3 }).run();
-        setShowSlashMenu(false);
-      },
-    },
-    {
-      title: 'Bullet List',
-      description: 'Create a simple bullet list.',
-      icon: <RiListUnordered className="w-5 h-5" />,
-      action: () => {
-        editor?.chain().focus().toggleBulletList().run();
-        setShowSlashMenu(false);
-      },
-    },
-    {
-      title: 'Numbered List',
-      description: 'Create a numbered list.',
-      icon: <RiListOrdered className="w-5 h-5" />,
-      action: () => {
-        editor?.chain().focus().toggleOrderedList().run();
-        setShowSlashMenu(false);
-      },
-    },
-    {
-      title: 'Quote',
-      description: 'Capture a quote.',
-      icon: <RiDoubleQuotesL className="w-5 h-5" />,
-      action: () => {
-        editor?.chain().focus().toggleBlockquote().run();
-        setShowSlashMenu(false);
-      },
-    },
-    {
-      title: 'Code',
-      description: 'Capture a code snippet.',
-      icon: <RiCodeLine className="w-5 h-5" />,
-      action: () => {
-        editor?.chain().focus().toggleCodeBlock().run();
-        setShowSlashMenu(false);
-      },
-    },
-    {
-      title: 'Image',
-      description: 'Upload or embed with a link.',
-      icon: <RiImage2Line className="w-5 h-5" />,
-      action: () => {
-        const url = prompt('Enter image URL');
-        if (url) {
-          editor?.chain().focus().setImage({ src: url }).run();
-        }
-        setShowSlashMenu(false);
-      },
-    },
-  ];
-
-  // Filter slash commands based on input
-  const filteredCommands = slashCommand
-    ? slashCommands.filter((cmd) =>
-        cmd.title.toLowerCase().includes(slashCommand.toLowerCase())
-      )
-    : slashCommands;
-
-  if (!editor) {
-    return null;
-  }
-
-  return (
-    <div className="rich-text-editor">
-      {editor && (
-        <BubbleMenu
-          editor={editor}
-          tippyOptions={{ duration: 100 }}
-          className="bg-bg border border-outline rounded-md shadow-lg p-1 flex space-x-1"
-        >
+  // Create toolbar component
+  const Toolbar = () => {
+    if (!editor) return null;
+    
+    return (
+      <div className="editor-toolbar">
+        <div className="toolbar-group">
           <button
             onClick={() => editor.chain().focus().toggleBold().run()}
-            className={`p-1 rounded hover:bg-hover ${
-              editor.isActive('bold') ? 'bg-hover' : ''
-            }`}
+            className={`toolbar-button ${editor.isActive('bold') ? 'active' : ''}`}
+            title="Bold (Ctrl+B)"
           >
             <RiBold className="w-4 h-4" />
           </button>
           <button
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={`p-1 rounded hover:bg-hover ${
-              editor.isActive('italic') ? 'bg-hover' : ''
-            }`}
+            className={`toolbar-button ${editor.isActive('italic') ? 'active' : ''}`}
+            title="Italic (Ctrl+I)"
           >
             <RiItalic className="w-4 h-4" />
           </button>
           <button
             onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={`p-1 rounded hover:bg-hover ${
-              editor.isActive('strike') ? 'bg-hover' : ''
-            }`}
+            className={`toolbar-button ${editor.isActive('strike') ? 'active' : ''}`}
+            title="Strikethrough"
           >
             <RiStrikethrough className="w-4 h-4" />
           </button>
           <button
             onClick={() => editor.chain().focus().toggleCode().run()}
-            className={`p-1 rounded hover:bg-hover ${
-              editor.isActive('code') ? 'bg-hover' : ''
-            }`}
+            className={`toolbar-button ${editor.isActive('code') ? 'active' : ''}`}
+            title="Code"
           >
             <RiCodeLine className="w-4 h-4" />
           </button>
+        </div>
+        
+        <div className="toolbar-divider"></div>
+        
+        <div className="toolbar-group">
+          <button
+            onClick={() => editor.chain().focus().setParagraph().run()}
+            className={`toolbar-button ${editor.isActive('paragraph') ? 'active' : ''}`}
+            title="Text"
+          >
+            <RiText className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            className={`toolbar-button ${editor.isActive('heading', { level: 1 }) ? 'active' : ''}`}
+            title="Heading 1"
+          >
+            <RiH1 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            className={`toolbar-button ${editor.isActive('heading', { level: 2 }) ? 'active' : ''}`}
+            title="Heading 2"
+          >
+            <RiH2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            className={`toolbar-button ${editor.isActive('heading', { level: 3 }) ? 'active' : ''}`}
+            title="Heading 3"
+          >
+            <RiH3 className="w-4 h-4" />
+          </button>
+        </div>
+        
+        <div className="toolbar-divider"></div>
+        
+        <div className="toolbar-group">
+          <button
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className={`toolbar-button ${editor.isActive('bulletList') ? 'active' : ''}`}
+            title="Bullet List"
+          >
+            <RiListUnordered className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            className={`toolbar-button ${editor.isActive('orderedList') ? 'active' : ''}`}
+            title="Numbered List"
+          >
+            <RiListOrdered className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            className={`toolbar-button ${editor.isActive('blockquote') ? 'active' : ''}`}
+            title="Quote"
+          >
+            <RiDoubleQuotesL className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+            className={`toolbar-button ${editor.isActive('codeBlock') ? 'active' : ''}`}
+            title="Code Block"
+          >
+            <RiFileCodeLine className="w-4 h-4" />
+          </button>
+        </div>
+        
+        <div className="toolbar-divider"></div>
+        
+        <div className="toolbar-group">
           <button
             onClick={() => {
               const url = prompt('Enter URL');
               if (url) {
                 editor.chain().focus().setLink({ href: url }).run();
-              } else {
+              } else if (editor.isActive('link')) {
                 editor.chain().focus().unsetLink().run();
               }
             }}
-            className={`p-1 rounded hover:bg-hover ${
-              editor.isActive('link') ? 'bg-hover' : ''
-            }`}
+            className={`toolbar-button ${editor.isActive('link') ? 'active' : ''}`}
+            title="Link"
           >
             <RiLink className="w-4 h-4" />
           </button>
-        </BubbleMenu>
-      )}
-
-      {/* Slash menu */}
-      {showSlashMenu && (
-        <div
-          className="absolute z-50 bg-bg border border-outline rounded-md shadow-lg p-2 w-64"
-          style={{
-            left: slashMenuPosition.x,
-            top: slashMenuPosition.y,
-          }}
-        >
-          <div className="text-sm text-muted mb-2">
-            {slashCommand ? `Searching for "${slashCommand}"` : 'Basic blocks'}
-          </div>
-          <div className="max-h-64 overflow-y-auto">
-            {filteredCommands.map((command, index) => (
-              <div
-                key={index}
-                className="flex items-center p-2 hover:bg-hover rounded-md cursor-pointer"
-                onClick={command.action}
-              >
-                <div className="mr-2 text-muted">{command.icon}</div>
-                <div>
-                  <div className="font-medium">{command.title}</div>
-                  <div className="text-xs text-muted">
-                    {command.description}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <button
+            onClick={() => {
+              const url = prompt('Enter image URL');
+              if (url) {
+                editor.chain().focus().setImage({ src: url }).run();
+              }
+            }}
+            className="toolbar-button"
+            title="Image"
+          >
+            <RiImage2Line className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().setHorizontalRule().run()}
+            className="toolbar-button"
+            title="Horizontal Rule"
+          >
+            <RiSeparator className="w-4 h-4" />
+          </button>
         </div>
-      )}
+        
+        <div className="toolbar-divider"></div>
+        
+        <div className="toolbar-group">
+          <button
+            onClick={() => editor.chain().focus().setTextAlign('left').run()}
+            className={`toolbar-button ${editor.isActive({ textAlign: 'left' }) ? 'active' : ''}`}
+            title="Align Left"
+          >
+            <RiAlignLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().setTextAlign('center').run()}
+            className={`toolbar-button ${editor.isActive({ textAlign: 'center' }) ? 'active' : ''}`}
+            title="Align Center"
+          >
+            <RiAlignCenter className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().setTextAlign('right').run()}
+            className={`toolbar-button ${editor.isActive({ textAlign: 'right' }) ? 'active' : ''}`}
+            title="Align Right"
+          >
+            <RiAlignRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
 
-      {/* Editor content */}
+  if (!editor) {
+    return null;
+  }
+
+  // Add a class to the editor container when focused
+  const editorClasses = `rich-text-editor ${isFocused ? 'is-focused' : ''}`;
+
+  // Handle click on editor container to focus
+  const handleEditorClick = () => {
+    if (editor && !editor.isFocused) {
+      editor.commands.focus();
+    }
+  };
+
+  return (
+    <div className={editorClasses} onClick={handleEditorClick}>
+      <Toolbar />
       <EditorContent
         editor={editor}
         className="prose prose-sm max-w-none focus:outline-none"
