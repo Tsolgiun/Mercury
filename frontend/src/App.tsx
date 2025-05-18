@@ -71,7 +71,7 @@ const AppContent: React.FC = () => {
   return (
     <Router>
       <Navbar />
-      <main className="pt-16 min-h-screen bg-bg">
+      <main className="md:pl-16 pt-0 pb-16 md:pb-0 min-h-screen bg-bg">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />

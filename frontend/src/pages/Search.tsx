@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { searchApi } from '../lib/api';
 import { formatDate } from '../lib/utils';
 import Feed from '../components/feed/Feed';
@@ -89,11 +89,59 @@ const Search: React.FC = () => {
     performSearch(query, tab, 1);
   };
 
+  // Handle search form submission
+  const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState(query);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchInput.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchInput.trim())}&type=${activeTab}`);
+    }
+  };
+
   return (
-    <div className="container-narrow py-6 mt-16">
-      <h1 className="text-2xl font-bold mb-6">
-        Search Results for "{query}"
-      </h1>
+    <div className="container-narrow py-6">
+      {/* Search input */}
+      <div className="mb-6">
+        <form onSubmit={handleSearch} className="relative">
+          <input
+            type="text"
+            placeholder="Search..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-full px-4 py-3 pl-10 bg-bg border border-outline rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 text-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
+          <button
+            type="submit"
+            className="absolute inset-y-0 right-0 px-4 text-primary"
+          >
+            Search
+          </button>
+        </form>
+      </div>
+
+      {query && (
+        <h1 className="text-2xl font-bold mb-6">
+          Search Results for "{query}"
+        </h1>
+      )}
 
       {/* Tabs */}
       <div className="flex justify-center mb-6 border-b border-outline">
