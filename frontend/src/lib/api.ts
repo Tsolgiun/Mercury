@@ -229,7 +229,6 @@ export const endpoints = {
   users: '/users',
   user: (id: string) => `/users/${id}`,
   userByUsername: (username: string) => `/users/username/${username}`,
-  userByFirebaseUid: (uid: string) => `/users/firebase/${uid}`,
   
   // Post endpoints
   posts: '/posts',
@@ -387,13 +386,6 @@ export const userApi = {
    * @returns User data
    */
   getUserByUsername: (username: string) => apiRequest(endpoints.userByUsername(username)),
-  
-  /**
-   * Get user by Firebase UID
-   * @param firebaseUid - Firebase UID
-   * @returns User data
-   */
-  getUserByFirebaseUid: (firebaseUid: string) => apiRequest(endpoints.userByFirebaseUid(firebaseUid)),
   
   /**
    * Update user profile

@@ -26,34 +26,6 @@ export const getCurrentUser = async (req: Request, res: Response) => {
   }
 };
 
-// @desc    Get user by Firebase UID
-// @route   GET /api/users/firebase/:uid
-// @access  Public
-export const getUserByFirebaseUid = async (req: Request, res: Response) => {
-  try {
-    const user = await User.findOne({ firebaseUid: req.params.uid }).select('-password -refreshToken -__v') as IUser;
-
-    if (user) {
-      res.status(200).json({
-        _id: user._id,
-        name: user.name,
-        username: user.username,
-        avatar: user.avatar,
-        bio: user.bio,
-        createdAt: user.createdAt,
-      });
-    } else {
-      res.status(404).json({ message: 'User not found' });
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ message: error.message });
-    } else {
-      res.status(500).json({ message: 'An unknown error occurred' });
-    }
-  }
-};
-
 // @desc    Get user by username
 // @route   GET /api/users/username/:username
 // @access  Public

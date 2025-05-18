@@ -2,7 +2,6 @@ import express from 'express';
 import {
   getCurrentUser,
   getUserByUsername,
-  getUserByFirebaseUid,
   getUserById,
   updateUserProfile,
   getUsers,
@@ -15,7 +14,6 @@ const router = express.Router();
 
 // Public routes
 router.get('/username/:username', [getUserByUsername] as any);
-router.get('/firebase/:uid', [getUserByFirebaseUid] as any);
 router.get('/:id', [getUserById] as any);
 
 // Protected routes (require authentication)

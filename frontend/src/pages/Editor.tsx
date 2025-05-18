@@ -44,7 +44,7 @@ const Editor: React.FC = () => {
         }
         
         // Check if current user is the author
-        if (currentUser?.uid !== post.author.firebaseUid) {
+        if (currentUser?._id !== post.author._id) {
           setError('You do not have permission to edit this post');
           return;
         }

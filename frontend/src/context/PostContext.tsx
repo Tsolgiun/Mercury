@@ -21,7 +21,6 @@ export interface Post {
   blocks: Block[];
   author: {
     _id: string;
-    firebaseUid: string;
     name: string;
     username?: string;
     avatar?: string;

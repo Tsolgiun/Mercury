@@ -51,13 +51,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error: any) {
         console.error('Error checking auth status:', error);
         
-        // Only clear tokens for specific authentication errors
-        // This prevents logout on network issues or other temporary problems
+        // Clear tokens for authentication errors and bad requests
+        // This prevents issues with malformed tokens or invalid requests
         if (error.response && (
+            error.response.status === 400 || // Bad Request
             error.response.status === 401 || // Unauthorized
             error.response.status === 403    // Forbidden
           )) {
-          console.log('Authentication error, clearing tokens');
+          console.log('Authentication error or bad request, clearing tokens');
           clearTokens();
         } else {
           console.log('Non-authentication error, keeping tokens');
