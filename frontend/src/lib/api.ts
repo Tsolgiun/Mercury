@@ -63,16 +63,41 @@ export const refreshAccessToken = async (): Promise<{ accessToken: string; refre
   }
   
   try {
-    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+    // Use a new axios instance to avoid interceptors that might cause infinite loops
+    const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken }, {
+      // Set a shorter timeout for refresh requests
+      timeout: 5000
+    });
+    
+    // Check if the response contains the expected data
+    if (!response.data || !response.data.accessToken || !response.data.refreshToken) {
+      console.error('Invalid refresh token response:', response.data);
+      throw new Error('Invalid refresh token response');
+    }
+    
     const { accessToken, refreshToken: newRefreshToken } = response.data;
     
     // Update tokens in local storage
     setTokens(accessToken, newRefreshToken);
     
     return { accessToken, refreshToken: newRefreshToken };
-  } catch (error) {
-    // If refresh fails, clear tokens and force re-login
-    clearTokens();
+  } catch (error: any) {
+    console.error('Token refresh failed:', error.message);
+    
+    // Only clear tokens for authentication errors (401, 403)
+    // This prevents logout on network issues or server errors
+    if (error.response && (
+        error.response.status === 401 || 
+        error.response.status === 403
+      )) {
+      console.log('Authentication error during token refresh, clearing tokens');
+      clearTokens();
+    } else {
+      console.log('Non-authentication error during token refresh, keeping tokens');
+      // For network errors or server errors, we might want to keep the tokens
+      // and let the user try again later
+    }
+    
     throw error;
   }
 };
@@ -94,23 +119,38 @@ api.interceptors.response.use(
   async error => {
     const originalRequest = error.config;
     
+    // If there's no response, it's likely a network error
+    if (!error.response) {
+      console.error('Network error detected:', error.message);
+      // Don't trigger logout for network errors
+      return Promise.reject({
+        ...error,
+        isHandled: true,
+        message: 'Network error. Please check your connection and try again.'
+      });
+    }
+    
     // Check if this is a bookmark-related request
     const isBookmarkRequest = originalRequest?.url?.includes('/bookmark');
     
     // If error is 401 (Unauthorized) and we haven't tried to refresh the token yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
       try {
+        console.log('Attempting to refresh token due to 401 response');
         // Try to refresh the token
         const { accessToken } = await refreshAccessToken();
         
         // Update the authorization header
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         
+        console.log('Token refreshed successfully, retrying original request');
         // Retry the original request
         return api(originalRequest);
-      } catch (refreshError) {
+      } catch (refreshError: any) {
+        console.error('Token refresh failed:', refreshError.message);
+        
         // For bookmark requests, handle auth errors more gracefully
         if (isBookmarkRequest) {
           console.warn('Authentication error during bookmark operation. Not logging out user.');
@@ -122,10 +162,19 @@ api.interceptors.response.use(
           });
         }
         
-        // For other requests, dispatch the auth-error event
-        window.dispatchEvent(new CustomEvent('auth-error', { 
-          detail: { message: 'Authentication failed. Please sign in again.' } 
-        }));
+        // Only dispatch auth-error for actual authentication failures
+        if (refreshError.response && (
+            refreshError.response.status === 401 || 
+            refreshError.response.status === 403
+          )) {
+          console.log('Dispatching auth-error event due to authentication failure');
+          // For other requests, dispatch the auth-error event
+          window.dispatchEvent(new CustomEvent('auth-error', { 
+            detail: { message: 'Authentication failed. Please sign in again.' } 
+          }));
+        } else {
+          console.log('Not dispatching auth-error for non-authentication error');
+        }
         
         return Promise.reject(refreshError);
       }
@@ -208,6 +257,19 @@ export const endpoints = {
   followers: (id: string) => `/social/followers/${id}`,
   following: (id: string) => `/social/following/${id}`,
   
+  // Notification endpoints
+  notifications: '/notifications',
+  notification: (id: string) => `/notifications/${id}`,
+  markNotificationRead: (id: string) => `/notifications/${id}/read`,
+  markAllNotificationsRead: '/notifications/read-all',
+  unreadNotificationCount: '/notifications/unread-count',
+  
+  // Search endpoints
+  search: (query: string, type?: string) => 
+    `/search?query=${encodeURIComponent(query)}${type ? `&type=${type}` : ''}`,
+  searchPosts: (query: string) => `/search/posts?query=${encodeURIComponent(query)}`,
+  searchUsers: (query: string) => `/search/users?query=${encodeURIComponent(query)}`,
+  
   // Upload endpoints
   uploadImage: '/upload/image',
 };
@@ -240,44 +302,68 @@ export async function apiRequest<T = any>(
     options.body = JSON.stringify(data);
   }
   
-  // Make the request
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-  
-  // Handle 401 Unauthorized (token expired)
-  if (response.status === 401) {
-    try {
-      // Try to refresh the token
-      const { accessToken } = await refreshAccessToken();
-      
-      // Update the authorization header and retry
-      options.headers = {
-        ...options.headers,
-        Authorization: `Bearer ${accessToken}`
-      };
-      
-      const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, options);
-      
-      if (!retryResponse.ok) {
-        const errorData = await retryResponse.json().catch(() => ({}));
-        throw new Error(errorData.message || `API request failed with status ${retryResponse.status}`);
+  try {
+    // Make the request
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+    
+    // Handle 401 Unauthorized (token expired)
+    if (response.status === 401) {
+      try {
+        console.log('Attempting to refresh token in apiRequest due to 401 response');
+        // Try to refresh the token
+        const { accessToken } = await refreshAccessToken();
+        
+        // Update the authorization header and retry
+        options.headers = {
+          ...options.headers,
+          Authorization: `Bearer ${accessToken}`
+        };
+        
+        console.log('Token refreshed successfully in apiRequest, retrying original request');
+        const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, options);
+        
+        if (!retryResponse.ok) {
+          const errorData = await retryResponse.json().catch(() => ({}));
+          throw new Error(errorData.message || `API request failed with status ${retryResponse.status}`);
+        }
+        
+        return await retryResponse.json();
+      } catch (refreshError: any) {
+        console.error('Token refresh failed in apiRequest:', refreshError.message);
+        
+        // Only clear tokens for authentication errors (401, 403)
+        if (refreshError.response && (
+            refreshError.response.status === 401 || 
+            refreshError.response.status === 403
+          )) {
+          console.log('Authentication error during token refresh in apiRequest, clearing tokens');
+          clearTokens();
+        } else {
+          console.log('Non-authentication error during token refresh in apiRequest, keeping tokens');
+        }
+        
+        throw refreshError;
       }
-      
-      return await retryResponse.json();
-    } catch (error) {
-      // If refresh fails, clear tokens and force re-login
-      clearTokens();
-      throw error;
     }
+    
+    // Handle other non-2xx responses
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `API request failed with status ${response.status}`);
+    }
+    
+    // Parse and return response data
+    return await response.json();
+  } catch (error: any) {
+    // Handle network errors
+    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      console.error('Network error in apiRequest:', error.message);
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+    
+    // Re-throw other errors
+    throw error;
   }
-  
-  // Handle other non-2xx responses
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `API request failed with status ${response.status}`);
-  }
-  
-  // Parse and return response data
-  return await response.json();
 }
 
 // User API endpoints
@@ -555,6 +641,80 @@ export const socialApi = {
    * @returns Follow status
    */
   checkFollowStatus: (userId: string) => apiRequest(`/social/follow/check/${userId}`)
+};
+
+// Search API endpoints
+export const searchApi = {
+  /**
+   * Search for posts and users
+   * @param query - Search query
+   * @param type - Optional search type ('all', 'posts', or 'users')
+   * @param page - Page number for pagination
+   * @param limit - Number of results per page
+   * @returns Search results
+   */
+  search: (query: string, type?: 'all' | 'posts' | 'users', page = 1, limit = 10) => 
+    apiRequest(`${endpoints.search(query, type)}&page=${page}&limit=${limit}`),
+  
+  /**
+   * Search for posts
+   * @param query - Search query
+   * @param page - Page number for pagination
+   * @param limit - Number of results per page
+   * @returns List of posts matching the query
+   */
+  searchPosts: (query: string, page = 1, limit = 10) => 
+    apiRequest(`${endpoints.searchPosts(query)}&page=${page}&limit=${limit}`),
+  
+  /**
+   * Search for users
+   * @param query - Search query
+   * @param page - Page number for pagination
+   * @param limit - Number of results per page
+   * @returns List of users matching the query
+   */
+  searchUsers: (query: string, page = 1, limit = 10) => 
+    apiRequest(`${endpoints.searchUsers(query)}&page=${page}&limit=${limit}`)
+};
+
+// Notification API endpoints
+export const notificationApi = {
+  /**
+   * Get user notifications
+   * @param page - Page number for pagination
+   * @param limit - Number of notifications per page
+   * @returns List of notifications
+   */
+  getNotifications: (page = 1, limit = 20) => 
+    apiRequest(`${endpoints.notifications}?page=${page}&limit=${limit}`),
+  
+  /**
+   * Mark a notification as read
+   * @param notificationId - Notification ID
+   * @returns Success status
+   */
+  markAsRead: (notificationId: string) => 
+    apiRequest(endpoints.markNotificationRead(notificationId), 'PUT'),
+  
+  /**
+   * Mark all notifications as read
+   * @returns Success status
+   */
+  markAllAsRead: () => apiRequest(endpoints.markAllNotificationsRead, 'PUT'),
+  
+  /**
+   * Delete a notification
+   * @param notificationId - Notification ID
+   * @returns Success status
+   */
+  deleteNotification: (notificationId: string) => 
+    apiRequest(endpoints.notification(notificationId), 'DELETE'),
+    
+  /**
+   * Get unread notification count
+   * @returns Unread notification count
+   */
+  getUnreadCount: () => apiRequest(endpoints.unreadNotificationCount),
 };
 
 // Export default api instance for use in other files

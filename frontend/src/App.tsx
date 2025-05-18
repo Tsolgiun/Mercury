@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import { AuthProvider } from './context/AuthContext';
 import { PostProvider } from './context/PostContext';
 import { SocialProvider } from './context/SocialContext';
+import { NotificationProvider } from './context/NotificationContext';
 
 // Pages
 import Home from './pages/Home';
@@ -13,7 +14,9 @@ import Post from './pages/Post';
 import Profile from './pages/Profile';
 import Editor from './pages/Editor';
 import Bookmarks from './pages/Bookmarks';
+import Search from './pages/Search';
 import NotFound from './pages/not-found';
+import Notifications from './pages/Notifications';
 
 // Components
 import { useAuth } from './hooks/use-auth';
@@ -99,6 +102,15 @@ const AppContent: React.FC = () => {
               </ProtectedRoute>
             } 
           />
+          <Route path="/search" element={<Search />} />
+          <Route 
+            path="/notifications" 
+            element={
+              <ProtectedRoute>
+                <Notifications />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
@@ -113,9 +125,11 @@ const App: React.FC = () => {
       <AuthProvider>
         <PostProvider>
           <SocialProvider>
-            <ToastProvider>
-              <AppContent />
-            </ToastProvider>
+            <NotificationProvider>
+              <ToastProvider>
+                <AppContent />
+              </ToastProvider>
+            </NotificationProvider>
           </SocialProvider>
         </PostProvider>
       </AuthProvider>

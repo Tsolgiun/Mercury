@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Comment, Post } from '../models';
+import { Comment, Post, Notification } from '../models';
 import mongoose from 'mongoose';
 
 // @desc    Create a new comment
@@ -52,6 +52,18 @@ export const createComment = async (req: Request, res: Response) => {
     // Increment comment count on post
     post.comments += 1;
     await post.save();
+    
+    // Create notification for post author if it's not the same user
+    if (post.author.toString() !== user?._id.toString()) {
+      await Notification.create({
+        recipient: post.author,
+        sender: user?._id,
+        type: 'comment',
+        post: post._id,
+        comment: comment._id,
+        read: false,
+      });
+    }
 
     // Populate user information
     const populatedComment = await Comment.findById(comment._id).populate({

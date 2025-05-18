@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/use-auth';
 import { useMobile } from '../../hooks/use-mobile';
+import { useNotifications } from '../../context/NotificationContext';
+import SearchBar from '../search/SearchBar';
 
 const Navbar: React.FC = () => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const isMobile = useMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { unreadCount } = useNotifications();
 
   // Handle logout
   const handleLogout = async () => {
@@ -32,6 +35,11 @@ const Navbar: React.FC = () => {
           Mercury
         </Link>
 
+        {/* Search Bar */}
+        <div className="hidden md:block mx-4 flex-grow max-w-md">
+          <SearchBar />
+        </div>
+
         {/* Desktop Navigation */}
         {!isMobile && (
           <nav className="flex items-center space-x-6">
@@ -39,15 +47,43 @@ const Navbar: React.FC = () => {
               Home
             </Link>
             {currentUser && (
-              <Link to="/bookmarks" className="hover:text-muted">
-                Bookmarks
-              </Link>
+              <>
+                <Link to="/bookmarks" className="hover:text-muted">
+                  Bookmarks
+                </Link>
+                <Link to="/notifications" className="hover:text-muted relative">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                    />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Link>
+              </>
             )}
           </nav>
         )}
 
         {/* Right side actions */}
         <div className="flex items-center">
+          {/* Mobile search */}
+          <div className="md:hidden mr-2">
+            <SearchBar />
+          </div>
+          
           {/* Write button */}
           {currentUser && (
             <Link
@@ -112,6 +148,18 @@ const Navbar: React.FC = () => {
                         onClick={() => setIsMenuOpen(false)}
                       >
                         Bookmarks
+                      </Link>
+                      <Link
+                        to="/notifications"
+                        className="block px-4 py-2 hover:bg-hover w-full text-left"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        Notifications
+                        {unreadCount > 0 && (
+                          <span className="ml-2 bg-primary text-white text-xs rounded-full px-2 py-1">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                          </span>
+                        )}
                       </Link>
                       <Link
                         to="/editor"

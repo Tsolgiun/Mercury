@@ -13,6 +13,8 @@ import userRoutes from './routes/userRoutes';
 import postRoutes from './routes/postRoutes';
 import commentRoutes from './routes/commentRoutes';
 import socialRoutes from './routes/socialRoutes';
+import searchRoutes from './routes/searchRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +45,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api', commentRoutes); // Comment routes include /posts/:postId/comments and /comments/:id
 app.use('/api/social', socialRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Basic route
 app.get('/', (req: Request, res: Response) => {

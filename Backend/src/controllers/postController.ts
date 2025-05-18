@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Post, User, Comment, Like, Bookmark } from '../models';
+import { Post, User, Comment, Like, Bookmark, Notification } from '../models';
 import mongoose from 'mongoose';
 
 // @desc    Create a new post
@@ -375,6 +375,17 @@ export const toggleLike = async (req: Request, res: Response) => {
       // Increment likes count
       post.likes += 1;
       await post.save();
+
+      // Create notification for post author if it's not the same user
+      if (post.author.toString() !== userId.toString()) {
+        await Notification.create({
+          recipient: post.author,
+          sender: userId,
+          type: 'like',
+          post: post._id,
+          read: false,
+        });
+      }
 
       res.status(200).json({ liked: true, likes: post.likes });
     }

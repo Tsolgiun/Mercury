@@ -48,9 +48,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Fetch user profile using axios instance
         const response = await api.get('/users/me');
         setCurrentUser(response.data);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error checking auth status:', error);
-        clearTokens();
+        
+        // Only clear tokens for specific authentication errors
+        // This prevents logout on network issues or other temporary problems
+        if (error.response && (
+            error.response.status === 401 || // Unauthorized
+            error.response.status === 403    // Forbidden
+          )) {
+          console.log('Authentication error, clearing tokens');
+          clearTokens();
+        } else {
+          console.log('Non-authentication error, keeping tokens');
+          // For other errors (network, server errors), keep the tokens
+          // This prevents logout on temporary issues
+        }
       } finally {
         setUserLoading(false);
       }

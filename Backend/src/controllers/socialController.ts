@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User, Follow } from '../models';
+import { User, Follow, Notification } from '../models';
 import mongoose from 'mongoose';
 
 // @desc    Follow a user
@@ -38,6 +38,14 @@ export const followUser = async (req: Request, res: Response) => {
     await Follow.create({
       follower: req.user?._id,
       following: userToFollow._id,
+    });
+
+    // Create notification for the user being followed
+    await Notification.create({
+      recipient: userToFollow._id,
+      sender: req.user?._id,
+      type: 'follow',
+      read: false,
     });
 
     res.status(200).json({ message: 'Successfully followed user' });

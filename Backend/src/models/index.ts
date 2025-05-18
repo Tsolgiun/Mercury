@@ -4,6 +4,7 @@ import Comment, { IComment } from './commentModel';
 import Bookmark, { IBookmark } from './bookmarkModel';
 import Follow, { IFollow } from './followModel';
 import Like, { ILike } from './likeModel';
+import Notification, { INotification } from './notificationModel';
 
 export {
   User,
@@ -17,5 +18,7 @@ export {
   Follow,
   IFollow,
   Like,
-  ILike
+  ILike,
+  Notification,
+  INotification
 };
