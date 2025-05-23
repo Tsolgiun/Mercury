@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { usePost } from '../hooks/use-post';
 import { useAuth } from '../hooks/use-auth';
 import { getToast } from '../hooks/use-toast';
@@ -8,7 +8,8 @@ import RichTextEditor from '../components/editor/RichTextEditor';
 
 const Editor: React.FC = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
   const { currentUser } = useAuth();
   const { fetchPostById, createPost, updatePost } = usePost();
   
@@ -27,16 +28,15 @@ const Editor: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  
-  // Load post data if editing an existing post
+    // Load post data if editing an existing post
   useEffect(() => {
     const loadPost = async () => {
-      if (!id) return;
+      if (!editId) return;
       
       try {
         setLoading(true);
         setError(null);
-        const post = await fetchPostById(id);
+        const post = await fetchPostById(editId);
         
         if (!post) {
           setError('Post not found');
@@ -64,10 +64,10 @@ const Editor: React.FC = () => {
       }
     };
     
-    if (id) {
+    if (editId) {
       loadPost();
     }
-  }, [id, fetchPostById, currentUser]);
+  }, [editId, fetchPostById, currentUser]);
   
   // Handle block content change
   const handleBlockContentChange = (index: number, content: string) => {
@@ -173,12 +173,11 @@ const Editor: React.FC = () => {
         coverImage: coverImage || undefined,
         readingTime: calculateReadingTime()
       };
+        let result;
       
-      let result;
-      
-      if (isEditing && id) {
+      if (isEditing && editId) {
         // Update existing post
-        result = await updatePost(id, postData);
+        result = await updatePost(editId, postData);
         getToast()?.showToast('Post updated successfully', 'success');
       } else {
         // Create new post

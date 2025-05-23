@@ -16,7 +16,8 @@ const Post: React.FC = () => {
   const { 
     fetchPostById, 
     toggleLike, 
-    toggleBookmark
+    toggleBookmark,
+    deletePost
   } = usePost();
   
   const [post, setPost] = useState<PostType | null>(null);
@@ -176,6 +177,28 @@ const Post: React.FC = () => {
     }
   };
   
+  // Handle delete post
+  const handleDeletePost = async () => {
+    if (!post || !id) return;
+    
+    if (window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+      try {
+        await deletePost(id);
+        getToast()?.showToast('Post deleted successfully', 'success');
+        navigate('/');
+      } catch (error) {
+        console.error('Error deleting post:', error);
+        getToast()?.showToast('Failed to delete post', 'error');
+      }
+    }
+  };
+  
+  // Handle edit post
+  const handleEditPost = () => {
+    if (!post || !id) return;
+    navigate(`/editor?edit=${id}`);
+  };
+  
   if (loading) {
     return (
       <div className="container-narrow py-12">
@@ -246,6 +269,51 @@ const Post: React.FC = () => {
           
           {/* Action buttons */}
           <div className="ml-auto flex space-x-2">
+            {/* Edit and Delete buttons - only show if current user is the author */}
+            {currentUser && currentUser._id === post.author._id && (
+              <>
+                <button
+                  onClick={handleEditPost}
+                  className="p-2 rounded-full hover:bg-hover"
+                  aria-label="Edit post"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleDeletePost}
+                  className="p-2 rounded-full hover:bg-hover text-red-500"
+                  aria-label="Delete post"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              </>
+            )}
             <button 
               onClick={handleLikeToggle}
               className={`p-2 rounded-full hover:bg-hover ${post.isLiked ? 'text-red-500' : ''}`}

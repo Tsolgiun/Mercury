@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Post } from '../../context/PostContext';
 import { usePost } from '../../hooks/use-post';
@@ -11,10 +11,14 @@ interface FeedCardProps {
 }
 
 const FeedCard: React.FC<FeedCardProps> = ({ post }) => {
-  const { toggleLike, toggleBookmark } = usePost();
+  const { toggleLike, toggleBookmark, deletePost } = usePost();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const [showOptions, setShowOptions] = useState(false);
+  
+  // Check if the current user is the author of the post
+  const isAuthor = currentUser && currentUser._id === post.author._id;
   
   // Extract first paragraph for preview
   const previewText = post.blocks.find(block => block.type === 'paragraph')?.content || '';
@@ -60,9 +64,39 @@ const FeedCard: React.FC<FeedCardProps> = ({ post }) => {
   const handleCardClick = () => {
     navigate(`/post/${post._id}`);
   };
+  
+  // Handle edit post
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/editor?edit=${post._id}`);
+  };
+  
+  // Handle delete post
+  const handleDeleteClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+      try {
+        await deletePost(post._id);
+        showToast('Post deleted successfully', 'success');
+      } catch (error) {
+        console.error('Error deleting post:', error);
+        showToast('Failed to delete post', 'error');
+      }
+    }
+  };
+  
+  // Toggle options menu
+  const toggleOptions = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowOptions(!showOptions);
+  };
 
   return (
-    <div onClick={handleCardClick} className="feed-card block cursor-pointer">
+    <div onClick={handleCardClick} className="feed-card block cursor-pointer relative">
       <div className="flex items-start">
         {/* Author avatar */}
         <Link 
@@ -85,7 +119,7 @@ const FeedCard: React.FC<FeedCardProps> = ({ post }) => {
         
         {/* Post content */}
         <div className="flex-1">
-          {/* Author and timestamp */}
+          {/* Author, timestamp, and options */}
           <div className="flex items-center mb-1">
             <Link 
               to={`/profile/${post.author._id}`} 
@@ -98,6 +132,80 @@ const FeedCard: React.FC<FeedCardProps> = ({ post }) => {
             <span className="text-sm text-muted">
               {formatRelativeTime(post.createdAt)}
             </span>
+            
+            {/* Post options for author */}
+            {isAuthor && (
+              <div className="relative ml-auto">
+                <button 
+                  onClick={toggleOptions}
+                  className="text-muted hover:text-fg p-1"
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-5 w-5" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" 
+                    />
+                  </svg>
+                </button>
+                
+                {/* Options dropdown */}
+                {showOptions && (
+                  <div 
+                    className="absolute right-0 top-full mt-1 bg-fg-alt shadow-md rounded-md z-10 overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button 
+                      onClick={handleEditClick}
+                      className="flex items-center w-full px-4 py-2 text-sm hover:bg-hover"
+                    >
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className="h-4 w-4 mr-2" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth={2} 
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" 
+                        />
+                      </svg>
+                      Edit
+                    </button>
+                    <button 
+                      onClick={handleDeleteClick}
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-500 hover:bg-hover"
+                    >
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className="h-4 w-4 mr-2" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth={2} 
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                        />
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           
           {/* Post title for long posts */}
