@@ -22,13 +22,30 @@ const FeedCard: React.FC<FeedCardProps> = ({ post }) => {
   
   // Extract first paragraph for preview
   const previewText = post.blocks.find(block => block.type === 'paragraph')?.content || '';
-  
-  // Handle like button click
+    // Handle like button click
   const handleLikeClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (currentUser) {
-      toggleLike(post._id);
+      try {
+        toggleLike(post._id).catch(error => {
+          // Show a user-friendly error message
+          showToast(
+            error.message || 'Failed to like post. Please try again later.',
+            'error'
+          );
+        });
+      } catch (error: any) {
+        // Error handling is done in the toggleLike function
+        // This is just a safeguard
+        showToast(
+          error.message || 'Failed to like post. Please try again later.',
+          'error'
+        );
+      }
+    } else {
+      // If no user is logged in, show a toast notification
+      showToast('Please log in to like posts', 'info');
     }
   };
   

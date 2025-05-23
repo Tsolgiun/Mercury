@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 // @desc    Create a new post
 // @route   POST /api/posts
 // @access  Private
-export const createPost = async (req: Request, res: Response) => {
+export const createPost = async (req: Request, res: Response): Promise<void> => {
   try {
     const { type, title, blocks, tags, coverImage } = req.body;
     const user = req.user;
@@ -74,7 +74,7 @@ export const createPost = async (req: Request, res: Response) => {
 // @desc    Get all posts with pagination
 // @route   GET /api/posts
 // @access  Public
-export const getPosts = async (req: Request, res: Response) => {
+export const getPosts = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -109,7 +109,7 @@ export const getPosts = async (req: Request, res: Response) => {
 // @desc    Get posts for discovery feed
 // @route   GET /api/posts/discover
 // @access  Public
-export const getDiscoverPosts = async (req: Request, res: Response) => {
+export const getDiscoverPosts = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -145,7 +145,7 @@ export const getDiscoverPosts = async (req: Request, res: Response) => {
 // @desc    Get posts from followed users
 // @route   GET /api/posts/following
 // @access  Private
-export const getFollowingPosts = async (req: Request, res: Response) => {
+export const getFollowingPosts = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -191,7 +191,7 @@ export const getFollowingPosts = async (req: Request, res: Response) => {
 // @desc    Get a single post by ID
 // @route   GET /api/posts/:id
 // @access  Public
-export const getPostById = async (req: Request, res: Response) => {
+export const getPostById = async (req: Request, res: Response): Promise<void> => {
   try {
     const post = await Post.findById(req.params.id).populate({
       path: 'author',
@@ -248,7 +248,7 @@ export const getPostById = async (req: Request, res: Response) => {
 // @desc    Update a post
 // @route   PUT /api/posts/:id
 // @access  Private
-export const updatePost = async (req: Request, res: Response) => {
+export const updatePost = async (req: Request, res: Response): Promise<void> => {
   try {
     const { title, blocks, tags, coverImage } = req.body;
     const post = await Post.findById(req.params.id);
@@ -296,7 +296,7 @@ export const updatePost = async (req: Request, res: Response) => {
 // @desc    Delete a post
 // @route   DELETE /api/posts/:id
 // @access  Private
-export const deletePost = async (req: Request, res: Response) => {
+export const deletePost = async (req: Request, res: Response): Promise<void> => {
   try {
     const post = await Post.findById(req.params.id);
 
@@ -332,7 +332,7 @@ export const deletePost = async (req: Request, res: Response) => {
 // @desc    Like or unlike a post
 // @route   POST /api/posts/:id/like
 // @access  Private
-export const toggleLike = async (req: Request, res: Response) => {
+export const toggleLike = async (req: Request, res: Response): Promise<void> => {
   try {
     const postId = req.params.id;
     
@@ -350,31 +350,35 @@ export const toggleLike = async (req: Request, res: Response) => {
       return;
     }
 
-    // Check if user has already liked the post
-    const existingLike = await Like.findOne({
+    // Attempt to remove like if it exists
+    const result = await Like.findOneAndDelete({
       post: postId,
       user: userId,
     });
 
-    if (existingLike) {
-      // Unlike the post
-      await Like.deleteOne({ _id: existingLike._id });
+    if (result) {
+      // Like was found and removed - decrement post likes
+      const updatedPost = await Post.findByIdAndUpdate(
+        postId,
+        { $inc: { likes: -1 } },
+        { new: true }
+      );
       
-      // Decrement likes count
-      post.likes -= 1;
-      await post.save();
-
-      res.status(200).json({ liked: false, likes: post.likes });
-    } else {
-      // Like the post
-      await Like.create({
-        post: postId,
-        user: userId,
+      res.status(200).json({ 
+        liked: false, 
+        likes: updatedPost?.likes || 0
       });
+      return;
+    }
 
-      // Increment likes count
-      post.likes += 1;
-      await post.save();
+    try {
+      // Like wasn't found - create new like and increment post likes atomically
+      await Like.create({ post: postId, user: userId });
+      const updatedPost = await Post.findByIdAndUpdate(
+        postId,
+        { $inc: { likes: 1 } },
+        { new: true }
+      );
 
       // Create notification for post author if it's not the same user
       if (post.author.toString() !== userId.toString()) {
@@ -387,9 +391,26 @@ export const toggleLike = async (req: Request, res: Response) => {
         });
       }
 
-      res.status(200).json({ liked: true, likes: post.likes });
+      res.status(200).json({
+        liked: true,
+        likes: updatedPost?.likes || 0
+      });
+      return;
+    } catch (error: unknown) {
+      // Handle potential duplicate key error
+      if (error && typeof error === 'object' && 'code' in error && error.code === 11000) {
+        // Like already exists (race condition) - return current state
+        const currentPost = await Post.findById(postId);
+        res.status(200).json({
+          liked: true,
+          likes: currentPost?.likes || 0
+        });
+        return;
+      }
+      throw error;
     }
   } catch (error) {
+    console.error('Error in toggleLike:', error);
     if (error instanceof Error) {
       res.status(500).json({ message: error.message });
     } else {
@@ -401,7 +422,7 @@ export const toggleLike = async (req: Request, res: Response) => {
 // @desc    Bookmark or unbookmark a post
 // @route   POST /api/posts/:id/bookmark
 // @access  Private
-export const toggleBookmark = async (req: Request, res: Response) => {
+export const toggleBookmark = async (req: Request, res: Response): Promise<void> => {
   try {
     const postId = req.params.id;
     
@@ -430,14 +451,16 @@ export const toggleBookmark = async (req: Request, res: Response) => {
       await Bookmark.deleteOne({ _id: existingBookmark._id });
       res.status(200).json({ bookmarked: false });
     } else {
-      // Add bookmark
-      await Bookmark.create({
-        post: postId,
-        user: userId,
-      });
+      // Add bookmark - use findOneAndUpdate with upsert to prevent duplicate key errors
+      await Bookmark.findOneAndUpdate(
+        { post: postId, user: userId },
+        { post: postId, user: userId },
+        { upsert: true, new: true }
+      );
       res.status(200).json({ bookmarked: true });
     }
   } catch (error) {
+    console.error('Error in toggleBookmark:', error);
     if (error instanceof Error) {
       res.status(500).json({ message: error.message });
     } else {
@@ -449,7 +472,7 @@ export const toggleBookmark = async (req: Request, res: Response) => {
 // @desc    Get bookmarked posts
 // @route   GET /api/posts/bookmarks
 // @access  Private
-export const getBookmarkedPosts = async (req: Request, res: Response) => {
+export const getBookmarkedPosts = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -496,7 +519,7 @@ export const getBookmarkedPosts = async (req: Request, res: Response) => {
 // @desc    Get posts by tag
 // @route   GET /api/posts/tags/:tag
 // @access  Public
-export const getPostsByTag = async (req: Request, res: Response) => {
+export const getPostsByTag = async (req: Request, res: Response): Promise<void> => {
   try {
     const tag = req.params.tag;
     const page = parseInt(req.query.page as string) || 1;
@@ -532,7 +555,7 @@ export const getPostsByTag = async (req: Request, res: Response) => {
 // @desc    Get posts by user
 // @route   GET /api/posts/user/:userId
 // @access  Public
-export const getPostsByUser = async (req: Request, res: Response) => {
+export const getPostsByUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.params.userId;
     const page = parseInt(req.query.page as string) || 1;

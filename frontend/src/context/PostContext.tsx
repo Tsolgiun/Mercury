@@ -198,16 +198,16 @@ export const PostProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
-  }, [setLoading, setError, setPosts]);
-
-  // Toggle like on a post (memoized to prevent infinite loops)
+  }, [setLoading, setError, setPosts]);  // Toggle like on a post (memoized to prevent infinite loops)
   const toggleLike = useCallback(async (id: string): Promise<void> => {
     if (!currentUser) return;
     
+    // Store the current like state before making the API call
+    const post = posts.find(p => p._id === id);
+    const wasLiked = post?.isLiked || false;
+    
     try {
-      await api.post(endpoints.likePost(id));
-      
-      // Update local state
+      // First update UI optimistically for better user experience
       setPosts(prevPosts => 
         prevPosts.map(post => {
           if (post._id === id) {
@@ -222,11 +222,49 @@ export const PostProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return post;
         })
       );
+      
+      // Then make the API call
+      console.log(`Attempting to toggle like for post ${id}`);
+      console.log(`User ID: ${currentUser._id}`);
+      console.log(`API endpoint: ${endpoints.likePost(id)}`);
+      
+      try {
+        const response = await api.post(endpoints.likePost(id));
+        console.log('Like API response:', response.data);
+      } catch (apiError: any) {
+        console.error('Detailed Like API error:');
+        if (apiError.response) {
+          console.error('- Status:', apiError.response.status);
+          console.error('- Data:', apiError.response.data);
+          console.error('- Headers:', apiError.response.headers);
+        } else if (apiError.request) {
+          console.error('- No response received from server');
+          console.error('- Request:', apiError.request);
+        } else {
+          console.error('- Message:', apiError.message);
+        }
+        throw apiError;
+      }
     } catch (error: any) {
       console.error(`Error toggling like for post ${id}:`, error);
+      
+      // If the API call fails, revert the UI change
+      setPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (post._id === id) {
+            return {
+              ...post,
+              isLiked: wasLiked,
+              likes: post.likes + (wasLiked ? 0 : -1)
+            };
+          }
+          return post;
+        })
+      );
+      
       setError(error.message || 'Failed to like/unlike post');
-    }
-  }, [currentUser, setPosts, setError]);
+      throw error;}
+  }, [currentUser, posts, setPosts, setError]);
 
   // Toggle bookmark on a post (memoized to prevent infinite loops)
   const toggleBookmark = useCallback(async (id: string): Promise<void> => {
