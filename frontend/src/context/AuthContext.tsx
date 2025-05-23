@@ -39,6 +39,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userLoading, setUserLoading] = useState(true);
 
+  // Initialize session persistence on mount
+  useEffect(() => {
+    initSessionPersistence();
+  }, []);
+
   // Check if user is logged in on mount
   useEffect(() => {
     const checkAuthStatus = async () => {
@@ -92,62 +97,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Fetch user profile using axios instance
         try {
+          console.log('Attempting to fetch user profile with token:', token.substring(0, 10) + '...');
           const response = await api.get('/users/me');
           setCurrentUser(response.data);
           console.log('Successfully fetched user profile');
           setAuthCheckStatus('success');
-          
-          // If we successfully fetched the profile, record the token refresh time
-          // This helps with the proactive refresh mechanism
           recordTokenRefresh();
         } catch (profileError: any) {
           console.error('Error fetching user profile:', profileError);
           
-          // Only clear tokens for specific authentication errors
-          // This prevents logout on temporary issues or network errors
-          if (profileError.response && (
-              profileError.response.status === 401 || // Unauthorized
-              profileError.response.status === 403    // Forbidden
-            )) {
-            console.log('Authentication error, attempting to refresh token');
-            
-            // Try to refresh the token before clearing
-            try {
-              const refreshed = await performProactiveRefresh();
-              
-              if (refreshed) {
-                // Successfully refreshed, now fetch user profile
-                const response = await api.get('/users/me');
-                setCurrentUser(response.data);
-                console.log('Successfully refreshed token and fetched user profile');
-                setAuthCheckStatus('success');
-              } else {
-                console.log('Token refresh not performed or failed');
-                setAuthCheckStatus('failed');
-              }
-            } catch (refreshError: any) {
-              console.error('Failed to refresh token:', refreshError);
-              // Only clear tokens if it's an authentication error
-              if (refreshError.response && (
-                refreshError.response.status === 401 || // Unauthorized
-                refreshError.response.status === 403    // Forbidden
-              )) {
-                console.log('Authentication error during token refresh, clearing tokens');
-                clearTokens();
-              }
-              setAuthCheckStatus('failed');
-            }
-          } else if (profileError.response && profileError.response.status === 400) {
-            // For bad requests, we might have a malformed token
-            console.log('Bad request error, clearing tokens');
-            clearTokens();
-            setAuthCheckStatus('failed');
-          } else {
-            console.log('Non-authentication error, keeping tokens');
-            // For other errors (network, server errors), keep the tokens
-            // This prevents logout on temporary issues
-            setAuthCheckStatus('failed');
+          // ADD THIS DEBUGGING CODE RIGHT HERE
+          if (profileError.response) {
+            console.log('Error status:', profileError.response.status);
+            console.log('Error data:', profileError.response.data);
           }
+          
+          // MODIFY THIS PART: Don't clear tokens on 400 errors
+          if (profileError.response) {
+            // Only clear tokens for actual authentication errors (401, 403)
+            // NOT for 400 Bad Request which could be a temporary issue
+            if (profileError.response.status === 401 || profileError.response.status === 403) {
+              console.log('Authentication error, clearing tokens');
+              clearTokens();
+            } else if (profileError.response.status === 400) {
+              console.log('Bad request error, but NOT clearing tokens - may be a temporary issue');
+              // Try to refresh the token instead of clearing
+              try {
+                const refreshed = await performProactiveRefresh();
+                if (refreshed) {
+                  console.log('Token refreshed after 400 error');
+                  // Try fetching profile again
+                  try {
+                    const retryResponse = await api.get('/users/me');
+                    setCurrentUser(retryResponse.data);
+                    console.log('Successfully fetched user profile after token refresh');
+                    setAuthCheckStatus('success');
+                    recordTokenRefresh();
+                    return; // Exit early if successful
+                  } catch (retryError) {
+                    console.error('Failed to fetch profile after token refresh:', retryError);
+                  }
+                }
+              } catch (refreshError) {
+                console.error('Failed to refresh token after 400 error:', refreshError);
+              }
+            } else {
+              console.log(`Received ${profileError.response.status} error, not clearing tokens`);
+            }
+          }
+          setAuthCheckStatus('failed');
         }
       } catch (error: any) {
         console.error('Error in auth check process:', error);
@@ -185,8 +183,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Record token refresh time
       recordTokenRefresh();
       
-      // Set user
+      // Set user and cache it
       setCurrentUser(response.user);
+      localStorage.setItem('cached_user_data', JSON.stringify(response.user));
       
       // Update auth check status
       setAuthCheckStatus('success');
@@ -217,8 +216,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Record token refresh time
       recordTokenRefresh();
       
-      // Set user
+      // Set user and cache it
       setCurrentUser(response.user);
+      localStorage.setItem('cached_user_data', JSON.stringify(response.user));
       
       // Update auth check status
       setAuthCheckStatus('success');
@@ -244,9 +244,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Clear user and tokens regardless of API success
+      // Clear user, tokens, and cached data
       setCurrentUser(null);
       clearTokens();
+      localStorage.removeItem('cached_user_data');
       setAuthCheckStatus('failed');
     }
   };
@@ -257,13 +258,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await api.put('/users/profile', data);
       const updatedUser = response.data;
       
-      // Update local state
-      setCurrentUser(prev => prev ? { ...prev, ...updatedUser } : updatedUser);
+      // Update local state and cache
+      setCurrentUser(prev => {
+        const newUser = prev ? { ...prev, ...updatedUser } : updatedUser;
+        localStorage.setItem('cached_user_data', JSON.stringify(newUser));
+        return newUser;
+      });
     } catch (error: any) {
       console.error('Profile update error:', error.message);
       throw error;
     }
   };
+
+  // Add this at the beginning of your AuthProvider component
+  useEffect(() => {
+    // Try to load user from localStorage if available
+    const cachedUserData = localStorage.getItem('cached_user_data');
+    if (cachedUserData) {
+      try {
+        const userData = JSON.parse(cachedUserData);
+        setCurrentUser(userData);
+        console.log('Loaded user data from cache');
+      } catch (e) {
+        console.error('Failed to parse cached user data:', e);
+      }
+    }
+  }, []);
 
   const value = {
     currentUser,

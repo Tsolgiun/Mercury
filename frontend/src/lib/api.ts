@@ -24,7 +24,13 @@ const api = axios.create({
  * @returns Access token or null if not found
  */
 export const getAccessToken = (): string | null => {
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+  // Check if token exists
+  if (!token) {
+    return null;
+  }
+  // Ensure the token doesn't already have the Bearer prefix
+  return token;
 };
 
 /**
@@ -41,7 +47,12 @@ export const getRefreshToken = (): string | null => {
  * @param refreshToken - JWT refresh token
  */
 export const setTokens = (accessToken: string, refreshToken: string): void => {
-  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  // Remove Bearer prefix if it exists
+  const cleanAccessToken = accessToken.startsWith('Bearer ') 
+    ? accessToken.substring(7) 
+    : accessToken;
+    
+  localStorage.setItem(ACCESS_TOKEN_KEY, cleanAccessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 };
 
@@ -146,8 +157,24 @@ api.interceptors.request.use(async (config) => {
   const token = getAccessToken();
   
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    // Log the entire token for debugging (be careful with this in production)
+    console.log('Token being used:', token);
+    
+    // Ensure the token has the Bearer prefix but only once
+    config.headers.Authorization = token.startsWith('Bearer ') 
+      ? token 
+      : `Bearer ${token}`;
+    
+    // For debugging
+    console.log('Authorization header:', config.headers.Authorization);
+  } else {
+    console.log('No token available for request');
   }
+  
+  // Log the full request for debugging
+  console.log('Request URL:', config.url);
+  console.log('Request method:', config.method);
+  console.log('Request headers:', config.headers);
   
   return config;
 });

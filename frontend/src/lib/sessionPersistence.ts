@@ -1,8 +1,8 @@
 import { getAccessToken, getRefreshToken, refreshAccessToken, setTokens } from './api';
 
-// Session storage key for last token refresh time
+// Local storage key for last token refresh time
 const LAST_REFRESH_KEY = 'last_token_refresh';
-// Session storage key for auth check status
+// Local storage key for auth check status
 const AUTH_CHECK_STATUS_KEY = 'auth_check_status';
 
 /**
@@ -10,7 +10,7 @@ const AUTH_CHECK_STATUS_KEY = 'auth_check_status';
  */
 export const recordTokenRefresh = (): void => {
   try {
-    sessionStorage.setItem(LAST_REFRESH_KEY, Date.now().toString());
+    localStorage.setItem(LAST_REFRESH_KEY, Date.now().toString());
   } catch (error) {
     console.error('Failed to record token refresh time:', error);
   }
@@ -22,7 +22,7 @@ export const recordTokenRefresh = (): void => {
  */
 export const getLastRefreshTime = (): number | null => {
   try {
-    const timestamp = sessionStorage.getItem(LAST_REFRESH_KEY);
+    const timestamp = localStorage.getItem(LAST_REFRESH_KEY);
     return timestamp ? parseInt(timestamp, 10) : null;
   } catch (error) {
     console.error('Failed to get last refresh time:', error);
@@ -56,7 +56,7 @@ export const isRefreshNeeded = (refreshIntervalMs = 55 * 60 * 1000): boolean => 
  */
 export const setAuthCheckStatus = (status: 'pending' | 'success' | 'failed'): void => {
   try {
-    sessionStorage.setItem(AUTH_CHECK_STATUS_KEY, status);
+    localStorage.setItem(AUTH_CHECK_STATUS_KEY, status);
   } catch (error) {
     console.error('Failed to set auth check status:', error);
   }
@@ -68,7 +68,7 @@ export const setAuthCheckStatus = (status: 'pending' | 'success' | 'failed'): vo
  */
 export const getAuthCheckStatus = (): string | null => {
   try {
-    return sessionStorage.getItem(AUTH_CHECK_STATUS_KEY);
+    return localStorage.getItem(AUTH_CHECK_STATUS_KEY);
   } catch (error) {
     console.error('Failed to get auth check status:', error);
     return null;
