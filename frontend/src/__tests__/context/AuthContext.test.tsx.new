@@ -1,0 +1,216 @@
+import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { AuthProvider, User, AuthContext } from '../../context/AuthContext';
+import authApi from '../../api/authApi';
+import * as apiModule from '../../lib/api';
+import * as sessionPersistence from '../../lib/sessionPersistence';
+
+// Mock API modules
+vi.mock('../../api/authApi', () => ({
+  default: {
+    login: vi.fn(),
+    register: vi.fn(),
+    getCurrentUser: vi.fn(),
+    updateProfile: vi.fn(),
+    logout: vi.fn(),
+  }
+}));
+
+vi.mock('../../lib/api', () => ({
+  setTokens: vi.fn(),
+  clearTokens: vi.fn(),
+  getAccessToken: vi.fn(() => 'mock-access-token'),
+  getRefreshToken: vi.fn(() => 'mock-refresh-token'),
+  refreshAccessToken: vi.fn(),
+  default: {
+    interceptors: {
+      request: { use: vi.fn(), eject: vi.fn() },
+      response: { use: vi.fn(), eject: vi.fn() }
+    }
+  }
+}));
+
+vi.mock('../../lib/sessionPersistence', () => ({
+  initSessionPersistence: vi.fn(),
+  performProactiveRefresh: vi.fn(),
+  recordTokenRefresh: vi.fn(),
+  setAuthCheckStatus: vi.fn(),
+}));
+
+// Test component to access auth context
+const TestComponent = () => {
+  const Auth = React.useContext(AuthContext);
+  
+  if (!Auth) {
+    return <div>No Auth Context</div>;
+  }
+  
+  return (
+    <div>
+      <div data-testid="user-info">
+        {Auth.currentUser ? Auth.currentUser.name : 'No user'}
+      </div>
+      <button 
+        data-testid="login-button" 
+        onClick={() => Auth.login('test@example.com', 'password123')}
+      >
+        Login
+      </button>
+      <button 
+        data-testid="register-button" 
+        onClick={() => Auth.register('new@example.com', 'password123', 'New User', 'newuser')}
+      >
+        Register
+      </button>
+      <button 
+        data-testid="logout-button" 
+        onClick={Auth.logout}
+      >
+        Logout
+      </button>
+      <div data-testid="loading-state">
+        {Auth.userLoading ? 'Loading' : 'Not Loading'}
+      </div>
+    </div>
+  );
+};
+
+describe('AuthContext', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should provide initial loading state', async () => {
+    // Mock getCurrentUser to simulate loading
+    (authApi.getCurrentUser as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise(resolve => setTimeout(() => resolve(null), 100))
+    );
+    
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    // Should initially be in loading state
+    expect(screen.getByTestId('loading-state').textContent).toBe('Loading');
+    
+    // After API resolves, loading should be false
+    await waitFor(() => {
+      expect(screen.getByTestId('loading-state').textContent).toBe('Not Loading');
+    });
+  });
+
+  it('should log in a user', async () => {
+    const mockUser = { 
+      _id: '123', 
+      email: 'test@example.com', 
+      name: 'Test User',
+      username: 'testuser' 
+    };
+    
+    (authApi.login as ReturnType<typeof vi.fn>).mockResolvedValue({
+      user: mockUser,
+      tokens: { access: 'access-token', refresh: 'refresh-token' }
+    });
+    
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+    
+    const loginButton = screen.getByTestId('login-button');
+    
+    // Click login button
+    await act(async () => {
+      await userEvent.click(loginButton);
+    });
+    
+    // Should call login API and set tokens
+    expect(authApi.login).toHaveBeenCalledWith('test@example.com', 'password123');
+    expect(apiModule.setTokens).toHaveBeenCalledWith('access-token', 'refresh-token');
+    
+    // User info should be updated
+    await waitFor(() => {
+      expect(screen.getByTestId('user-info').textContent).toBe('Test User');
+    });
+  });
+
+  it('should register a new user', async () => {
+    const mockUser = { 
+      _id: '456', 
+      email: 'new@example.com', 
+      name: 'New User',
+      username: 'newuser' 
+    };
+    
+    (authApi.register as ReturnType<typeof vi.fn>).mockResolvedValue({
+      user: mockUser,
+      tokens: { access: 'access-token', refresh: 'refresh-token' }
+    });
+    
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+    
+    const registerButton = screen.getByTestId('register-button');
+    
+    // Click register button
+    await act(async () => {
+      await userEvent.click(registerButton);
+    });
+    
+    // Should call register API and set tokens
+    expect(authApi.register).toHaveBeenCalledWith('new@example.com', 'password123', 'New User', 'newuser');
+    expect(apiModule.setTokens).toHaveBeenCalledWith('access-token', 'refresh-token');
+    
+    // User info should be updated
+    await waitFor(() => {
+      expect(screen.getByTestId('user-info').textContent).toBe('New User');
+    });
+  });
+
+  it('should logout a user', async () => {
+    const mockUser = { 
+      _id: '123', 
+      email: 'test@example.com', 
+      name: 'Test User',
+      username: 'testuser' 
+    };
+    
+    // Setup initial logged in state
+    (authApi.getCurrentUser as ReturnType<typeof vi.fn>).mockResolvedValue(mockUser);
+    
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+    
+    // Wait for user to be loaded
+    await waitFor(() => {
+      expect(screen.getByTestId('user-info').textContent).toBe('Test User');
+    });
+    
+    const logoutButton = screen.getByTestId('logout-button');
+    
+    // Click logout button
+    await act(async () => {
+      await userEvent.click(logoutButton);
+    });
+    
+    // Should call logout API and clear tokens
+    expect(authApi.logout).toHaveBeenCalled();
+    expect(apiModule.clearTokens).toHaveBeenCalled();
+    
+    // User info should be updated
+    await waitFor(() => {
+      expect(screen.getByTestId('user-info').textContent).toBe('No user');
+    });
+  });
+});

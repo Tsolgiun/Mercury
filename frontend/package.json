@@ -45,7 +45,16 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:ci": "vitest run",
+    "test:html": "vitest run --reporter html",
+    "test:clear": "vitest --clearMocks",
+    "test:watch": "vitest watch --reporter verbose",
+    "test:detailed": "vitest --reporter verbose",
+    "test:view": "tsx ./src/__tests__/scripts/generateReport.ts",
+    "test:summary": "vitest run --reporter verbose"
   },
   "eslintConfig": {
     "extends": [
@@ -67,11 +76,15 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
+    "@vitest/coverage-v8": "^1.6.1",
+    "@vitest/ui": "^1.6.1",
     "autoprefixer": "^10.4.19",
+    "jsdom": "^26.1.0",
     "postcss": "^8.4.38",
     "postcss-import": "^16.1.0",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.19.4",
     "vite": "^5.0.10",
-    "vitest": "^1.0.4"
+    "vitest": "^1.6.1"
   }
 }

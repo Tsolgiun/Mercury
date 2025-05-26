@@ -38,8 +38,7 @@ const postSchema = new Schema<IPost>(
       required: function(this: IPost) {
         return this.type === 'long';
       },
-    },
-    blocks: {
+    },    blocks: {
       type: [{
         type: {
           type: String,
@@ -53,6 +52,12 @@ const postSchema = new Schema<IPost>(
         language: String,
       }],
       required: [true, 'Post content is required'],
+      validate: {
+        validator: function(blocks: IBlock[]) {
+          return Array.isArray(blocks) && blocks.length > 0;
+        },
+        message: 'Post must have at least one block of content'
+      }
     },
     author: {
       type: Schema.Types.ObjectId,
@@ -73,19 +78,18 @@ const postSchema = new Schema<IPost>(
     },
     coverImage: {
       type: String,
-    },
-    readingTime: {
+    },    readingTime: {
       type: Number,
       default: function(this: IPost) {
         // Calculate reading time based on content length
         // Assuming average reading speed of 200 words per minute
         const wordCount = this.blocks.reduce((count, block) => {
           if (block.content) {
-            return count + block.content.split(/\s+/).length;
+            return count + block.content.split(/\s+/).filter(Boolean).length;
           }
           return count;
         }, 0);
-        return Math.ceil(wordCount / 200);
+        return Math.floor(wordCount / 200) || 1; // Ensure minimum 1 minute, use floor instead of ceil
       },
     },
     likes: {

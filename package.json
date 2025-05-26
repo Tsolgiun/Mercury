@@ -2,15 +2,22 @@
   "name": "mercury-mern",
   "version": "1.0.0",
   "description": "MERN Stack Application with TypeScript",
-  "main": "index.js",
-  "scripts": {
+  "main": "index.js",  "scripts": {
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd Backend && npm run dev",
     "client": "cd frontend && npm start",
     "install-all": "npm install && cd Backend && npm install && cd ../frontend && npm install",
     "build": "cd Backend && npm run build && cd ../frontend && npm run build",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "seed": "cd Backend && npm run seed"
+    "seed": "cd Backend && npm run seed",    "test": "concurrently \"npm run test:backend\" \"npm run test:frontend\"",
+    "test:backend": "cd Backend && npm run test:report",
+    "test:frontend": "cd frontend && npm run test:html",
+    "test:coverage": "concurrently \"cd Backend && npm run test:coverage\" \"cd frontend && npm run test:coverage\"",
+    "test:all": "npm run test:backend && npm run test:frontend",
+    "test:view-backend": "cd Backend && npm run test:view",
+    "test:view-frontend": "cd frontend && npm run test:view",
+    "test:view-all": "npm run test:view-backend && npm run test:view-frontend",
+    "test:summary": "concurrently \"cd Backend && npm run test:summary\" \"cd frontend && npm run test:summary\""
   },
   "keywords": [
     "mern",

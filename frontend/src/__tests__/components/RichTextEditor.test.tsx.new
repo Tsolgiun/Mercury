@@ -1,0 +1,164 @@
+import React from 'react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import RichTextEditor from '../../components/editor/RichTextEditor';
+
+// Mock the extensions and React Icons
+vi.mock('@tiptap/react', () => {
+  return {
+    useEditor: vi.fn().mockReturnValue({
+      isActive: vi.fn().mockReturnValue(false),
+      chain: vi.fn().mockReturnValue({
+        focus: vi.fn().mockReturnValue({
+          toggleBold: vi.fn().mockReturnValue({ run: vi.fn() }),
+          toggleItalic: vi.fn().mockReturnValue({ run: vi.fn() }),
+          toggleStrike: vi.fn().mockReturnValue({ run: vi.fn() }),
+          toggleCodeBlock: vi.fn().mockReturnValue({ run: vi.fn() }),
+          toggleHeading: vi.fn().mockReturnValue({ run: vi.fn() }),
+          toggleBulletList: vi.fn().mockReturnValue({ run: vi.fn() }),
+          toggleOrderedList: vi.fn().mockReturnValue({ run: vi.fn() }),
+          toggleBlockquote: vi.fn().mockReturnValue({ run: vi.fn() }),
+          setTextAlign: vi.fn().mockReturnValue({ run: vi.fn() }),
+        }),
+      }),
+      getHTML: vi.fn().mockReturnValue('<p>Test content</p>'),
+      getJSON: vi.fn().mockReturnValue({
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Test content' }],
+          },
+        ],
+      }),
+      commands: {
+        setContent: vi.fn(),
+      },
+    }),
+    EditorContent: (props) => <div data-testid="editor-content">Editor Content</div>,
+  };
+});
+
+// Mock React Icons
+vi.mock('react-icons/ri', () => ({
+  RiBold: () => <span data-testid="icon-bold">Bold</span>,
+  RiItalic: () => <span data-testid="icon-italic">Italic</span>,
+  RiStrikethrough: () => <span data-testid="icon-strikethrough">Strikethrough</span>,
+  RiCodeLine: () => <span data-testid="icon-code">Code</span>,
+  RiLink: () => <span data-testid="icon-link">Link</span>,
+  RiH1: () => <span data-testid="icon-h1">H1</span>,
+  RiH2: () => <span data-testid="icon-h2">H2</span>,
+  RiH3: () => <span data-testid="icon-h3">H3</span>,
+  RiListOrdered: () => <span data-testid="icon-list-ordered">Ordered List</span>,
+  RiListUnordered: () => <span data-testid="icon-list-unordered">Unordered List</span>,
+  RiDoubleQuotesL: () => <span data-testid="icon-quote">Quote</span>,
+  RiImage2Line: () => <span data-testid="icon-image">Image</span>,
+  RiAlignLeft: () => <span data-testid="icon-align-left">Align Left</span>,
+  RiAlignCenter: () => <span data-testid="icon-align-center">Align Center</span>,
+  RiAlignRight: () => <span data-testid="icon-align-right">Align Right</span>,
+  RiFileCodeLine: () => <span data-testid="icon-code-block">Code Block</span>,
+  RiSeparator: () => <span data-testid="icon-separator">Separator</span>,
+  RiText: () => <span data-testid="icon-text">Text</span>,
+}));
+
+// Mock extensions
+vi.mock('@tiptap/starter-kit', () => ({
+  default: vi.fn(),
+}));
+
+vi.mock('@tiptap/extension-placeholder', () => ({
+  default: vi.fn(),
+}));
+
+vi.mock('@tiptap/extension-image', () => ({
+  default: vi.fn(),
+}));
+
+vi.mock('@tiptap/extension-link', () => ({
+  default: vi.fn(),
+}));
+
+vi.mock('@tiptap/extension-text-align', () => ({
+  default: vi.fn(),
+}));
+
+vi.mock('@tiptap/extension-code-block', () => ({
+  default: vi.fn(),
+}));
+
+vi.mock('../../components/editor/extensions/DragHandle', () => ({
+  default: vi.fn(),
+}));
+
+describe('RichTextEditor Component', () => {
+  it('renders with toolbar and content area', () => {
+    const handleChange = vi.fn();
+    render(<RichTextEditor onChange={handleChange} />);
+    
+    // Check that the toolbar and editor content exist
+    expect(screen.getByTestId('editor-toolbar')).toBeInTheDocument();
+    expect(screen.getByTestId('editor-content')).toBeInTheDocument();
+  });
+
+  it('has formatting buttons in the toolbar', () => {
+    const handleChange = vi.fn();
+    render(<RichTextEditor onChange={handleChange} />);
+    
+    // Check that formatting buttons exist
+    expect(screen.getByTestId('icon-bold')).toBeInTheDocument();
+    expect(screen.getByTestId('icon-italic')).toBeInTheDocument();
+    expect(screen.getByTestId('icon-h1')).toBeInTheDocument();
+    expect(screen.getByTestId('icon-list-unordered')).toBeInTheDocument();
+    expect(screen.getByTestId('icon-list-ordered')).toBeInTheDocument();
+    expect(screen.getByTestId('icon-quote')).toBeInTheDocument();
+  });
+
+  it('calls onChange when content changes', async () => {
+    const handleChange = vi.fn();
+    render(<RichTextEditor onChange={handleChange} />);
+    
+    // Simulate content change
+    const editorContent = screen.getByTestId('editor-content');
+    fireEvent.input(editorContent);
+    
+    // Wait for onChange to be called
+    await waitFor(() => {
+      expect(handleChange).toHaveBeenCalled();
+    });
+  });
+
+  it('renders with initial blocks', () => {
+    const handleChange = vi.fn();
+    const initialBlocks = [
+      {
+        id: '1',
+        type: 'paragraph',
+        content: 'Initial test content',
+      }
+    ];
+    
+    render(<RichTextEditor initialBlocks={initialBlocks} onChange={handleChange} />);
+    
+    // Verify editor is rendered
+    expect(screen.getByTestId('editor-content')).toBeInTheDocument();
+  });
+
+  it('applies formatting when toolbar buttons are clicked', async () => {
+    const handleChange = vi.fn();
+    render(<RichTextEditor onChange={handleChange} />);
+    
+    // Click the bold button
+    const boldButton = screen.getByRole('button', { name: /bold/i });
+    fireEvent.click(boldButton);
+    
+    // Click the heading button
+    const h1Button = screen.getByRole('button', { name: /h1/i });
+    fireEvent.click(h1Button);
+    
+    // We can't easily test the actual formatting, but we can ensure the click handlers work
+    await waitFor(() => {
+      expect(handleChange).toHaveBeenCalled();
+    });
+  });
+});

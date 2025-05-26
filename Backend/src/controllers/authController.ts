@@ -70,14 +70,16 @@ export const register = async (req: Request, res: Response) => {
 
     // Save refresh token to user
     user.refreshToken = refreshToken;
-    await user.save();
-
-    // Return user data and tokens
+    await user.save();    // Return user data and tokens
     res.status(201).json({
       success: true,
-      user: createUserResponse(user),
-      accessToken,
-      refreshToken,
+      data: {
+        user: createUserResponse(user),
+        tokens: {
+          accessToken,
+          refreshToken
+        }
+      }
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -131,29 +133,37 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // Find user by email
-    const user = await User.findOne({ email }) as IUser;
-
-    // Check if user exists and password is correct
-    if (!user || !(await comparePassword(password, user.password))) {
+    const user = await User.findOne({ email }) as IUser;    // If user doesn't exist
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+    
+    // If password is incorrect
+    if (!(await comparePassword(password, user.password))) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password',
+        message: 'Invalid credentials',
       });
     }
 
     // Generate tokens
-    const { accessToken, refreshToken } = generateTokens(user._id.toString());
-
-    // Save refresh token to user
+    const { accessToken, refreshToken } = generateTokens(user._id.toString());    // Save refresh token to user
     user.refreshToken = refreshToken;
     await user.save();
 
-    // Return user data and tokens
+    // Return user data and tokens with proper structure
     res.status(200).json({
       success: true,
-      user: createUserResponse(user),
-      accessToken,
-      refreshToken,
+      data: {
+        user: createUserResponse(user),
+        tokens: {
+          accessToken,
+          refreshToken
+        }
+      }
     });
   } catch (error) {
     if (error instanceof Error) {
