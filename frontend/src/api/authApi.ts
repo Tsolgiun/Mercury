@@ -55,8 +55,37 @@ export const register = async (userData: RegisterData): Promise<AuthResponse> =>
  * @returns Promise with user data and tokens
  */
 export const login = async (loginData: LoginData): Promise<AuthResponse> => {
-  const response = await api.post('/auth/login', loginData);
-  return response.data;
+  try {
+    console.log('Making login API call with data:', {
+      ...loginData,
+      password: '******' // Don't log actual password
+    });
+    
+    const response = await api.post('/auth/login', loginData);
+    console.log('Login API response structure:', JSON.stringify({
+      success: response.data.success,
+      data: response.data.data ? {
+        user: response.data.data.user ? 'exists' : 'missing',
+        tokens: response.data.data.tokens ? 'exists' : 'missing'
+      } : 'missing'
+    }));
+    
+    // Handle the nested response structure correctly
+    if (response.data && response.data.data) {
+      const { user, tokens } = response.data.data;
+      return {
+        success: response.data.success,
+        user,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken
+      };
+    } else {
+      throw new Error('Invalid response format from server');
+    }
+  } catch (error) {
+    console.error('Login API error:', error);
+    throw error;
+  }
 };
 
 /**

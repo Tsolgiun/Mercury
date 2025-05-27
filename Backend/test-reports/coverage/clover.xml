@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1748270042710" clover="3.2.0">
-  <project timestamp="1748270042710" name="All files">
-    <metrics statements="1006" coveredstatements="135" conditionals="356" coveredconditionals="23" methods="80" coveredmethods="10" elements="1442" coveredelements="168" complexity="0" loc="1006" ncloc="1006" packages="7" files="27" classes="27"/>
+<coverage generated="1748354238288" clover="3.2.0">
+  <project timestamp="1748354238288" name="All files">
+    <metrics statements="999" coveredstatements="128" conditionals="356" coveredconditionals="23" methods="73" coveredmethods="10" elements="1428" coveredelements="161" complexity="0" loc="999" ncloc="999" packages="7" files="27" classes="27"/>
     <package name="config">
       <metrics statements="21" coveredstatements="0" conditionals="3" coveredconditionals="0" methods="1" coveredmethods="0"/>
       <file name="db.ts" path="C:\Users\Tsoogii\Desktop\sandbox\Mercury\Mercury\Backend\src\config\db.ts">
@@ -862,7 +862,7 @@
       </file>
     </package>
     <package name="models">
-      <metrics statements="65" coveredstatements="61" conditionals="11" coveredconditionals="5" methods="12" coveredmethods="4"/>
+      <metrics statements="58" coveredstatements="54" conditionals="11" coveredconditionals="5" methods="5" coveredmethods="4"/>
       <file name="bookmarkModel.ts" path="C:\Users\Tsoogii\Desktop\sandbox\Mercury\Mercury\Backend\src\models\bookmarkModel.ts">
         <metrics statements="5" coveredstatements="5" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
         <line num="1" count="1" type="stmt"/>
@@ -889,7 +889,7 @@
         <line num="33" count="1" type="stmt"/>
       </file>
       <file name="index.ts" path="C:\Users\Tsoogii\Desktop\sandbox\Mercury\Mercury\Backend\src\models\index.ts">
-        <metrics statements="21" coveredstatements="21" conditionals="0" coveredconditionals="0" methods="7" coveredmethods="0"/>
+        <metrics statements="14" coveredstatements="14" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
         <line num="1" count="1" type="stmt"/>
         <line num="2" count="1" type="stmt"/>
         <line num="3" count="1" type="stmt"/>
@@ -897,7 +897,6 @@
         <line num="5" count="1" type="stmt"/>
         <line num="6" count="1" type="stmt"/>
         <line num="7" count="1" type="stmt"/>
-        <line num="10" count="1" type="stmt"/>
         <line num="11" count="1" type="stmt"/>
         <line num="12" count="1" type="stmt"/>
         <line num="13" count="1" type="stmt"/>
@@ -905,12 +904,6 @@
         <line num="15" count="1" type="stmt"/>
         <line num="16" count="1" type="stmt"/>
         <line num="17" count="1" type="stmt"/>
-        <line num="18" count="1" type="stmt"/>
-        <line num="19" count="1" type="stmt"/>
-        <line num="20" count="1" type="stmt"/>
-        <line num="21" count="1" type="stmt"/>
-        <line num="22" count="1" type="stmt"/>
-        <line num="23" count="1" type="stmt"/>
       </file>
       <file name="likeModel.ts" path="C:\Users\Tsoogii\Desktop\sandbox\Mercury\Mercury\Backend\src\models\likeModel.ts">
         <metrics statements="11" coveredstatements="8" conditionals="6" coveredconditionals="0" methods="1" coveredmethods="0"/>

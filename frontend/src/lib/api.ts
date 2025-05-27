@@ -47,8 +47,13 @@ export const getRefreshToken = (): string | null => {
  * @param refreshToken - JWT refresh token
  */
 export const setTokens = (accessToken: string, refreshToken: string): void => {
-  // Remove Bearer prefix if it exists
-  const cleanAccessToken = accessToken.startsWith('Bearer ') 
+  if (!accessToken || !refreshToken) {
+    console.warn('Attempted to set empty tokens:', { accessToken, refreshToken });
+    return;
+  }
+  
+  // Remove Bearer prefix if it exists (safely check if string first)
+  const cleanAccessToken = typeof accessToken === 'string' && accessToken.startsWith('Bearer ') 
     ? accessToken.substring(7) 
     : accessToken;
     
@@ -161,9 +166,15 @@ api.interceptors.request.use(async (config) => {
     console.log('Token being used:', token);
     
     // Ensure the token has the Bearer prefix but only once
-    config.headers.Authorization = token.startsWith('Bearer ') 
-      ? token 
-      : `Bearer ${token}`;
+    // Check that token is a string before using startsWith
+    if (typeof token === 'string') {
+      config.headers.Authorization = token.startsWith('Bearer ') 
+        ? token 
+        : `Bearer ${token}`;
+    } else {
+      console.warn('Token is not a string:', token);
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     
     // For debugging
     console.log('Authorization header:', config.headers.Authorization);

@@ -6,19 +6,24 @@ import Follow, { IFollow } from './followModel';
 import Like, { ILike } from './likeModel';
 import Notification, { INotification } from './notificationModel';
 
+// Export the model classes normally
 export {
   User,
-  IUser,
   Post,
-  IPost,
   Comment,
-  IComment,
   Bookmark,
-  IBookmark,
   Follow,
-  IFollow,
   Like,
+  Notification
+};
+
+// Export types with explicit 'export type'
+export type {
+  IUser,
+  IPost,
+  IComment,
+  IBookmark,
+  IFollow,
   ILike,
-  Notification,
   INotification
 };

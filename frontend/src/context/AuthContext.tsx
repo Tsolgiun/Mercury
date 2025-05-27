@@ -177,6 +177,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await authApi.login({ email, password });
       
+      console.log('Login response received in AuthContext:', {
+        success: response.success,
+        hasUser: !!response.user,
+        hasTokens: !!(response.accessToken && response.refreshToken)
+      });
+      
+      // Validate necessary data is present
+      if (!response.accessToken || !response.refreshToken || !response.user) {
+        console.error('Invalid login response:', response);
+        throw new Error('Invalid login response from server');
+      }
+      
       // Save tokens
       setTokens(response.accessToken, response.refreshToken);
       

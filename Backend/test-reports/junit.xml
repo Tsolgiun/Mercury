@@ -1,52 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="20" failures="0" errors="0" time="22.39">
-  <testsuite name="Test Setup" errors="0" failures="0" skipped="0" timestamp="2025-05-26T14:33:40" time="13.057" tests="7">
-    <testcase classname="Test Setup" name="should setup the test environment" time="1.329">
+<testsuites name="jest tests" tests="20" failures="0" errors="0" time="23.747">
+  <testsuite name="Test Setup" errors="0" failures="0" skipped="0" timestamp="2025-05-27T13:56:54" time="12.874" tests="7">
+    <testcase classname="Test Setup" name="should setup the test environment" time="1.376">
     </testcase>
-    <testcase classname="Auth Controller Tests › POST /api/auth/register" name="should register a new user successfully" time="1.6">
+    <testcase classname="Auth Controller Tests › POST /api/auth/register" name="should register a new user successfully" time="2.062">
     </testcase>
-    <testcase classname="Auth Controller Tests › POST /api/auth/register" name="should return 400 for missing fields" time="0.887">
+    <testcase classname="Auth Controller Tests › POST /api/auth/register" name="should return 400 for missing fields" time="0.616">
     </testcase>
-    <testcase classname="Auth Controller Tests › POST /api/auth/register" name="should return 400 for duplicate email" time="1.516">
+    <testcase classname="Auth Controller Tests › POST /api/auth/register" name="should return 400 for duplicate email" time="1.063">
     </testcase>
-    <testcase classname="Auth Controller Tests › POST /api/auth/login" name="should login successfully with correct credentials" time="1.722">
+    <testcase classname="Auth Controller Tests › POST /api/auth/login" name="should login successfully with correct credentials" time="1.23">
     </testcase>
-    <testcase classname="Auth Controller Tests › POST /api/auth/login" name="should return 401 for incorrect password" time="1.55">
+    <testcase classname="Auth Controller Tests › POST /api/auth/login" name="should return 401 for incorrect password" time="1.735">
     </testcase>
-    <testcase classname="Auth Controller Tests › POST /api/auth/login" name="should return 404 for non-existent user" time="1.443">
-    </testcase>
-  </testsuite>
-  <testsuite name="Test Setup" errors="0" failures="0" skipped="0" timestamp="2025-05-26T14:33:53" time="3.391" tests="6">
-    <testcase classname="Test Setup" name="should setup the test environment" time="0.233">
-    </testcase>
-    <testcase classname="Post Model Tests" name="should create &amp; save a short post successfully" time="0.388">
-    </testcase>
-    <testcase classname="Post Model Tests" name="should create &amp; save a long post successfully" time="0.366">
-    </testcase>
-    <testcase classname="Post Model Tests" name="should fail to create a post without required fields" time="0.253">
-    </testcase>
-    <testcase classname="Post Model Tests" name="should fail to create a long post without a title" time="0.229">
-    </testcase>
-    <testcase classname="Post Model Tests" name="should calculate reading time based on content length" time="0.361">
+    <testcase classname="Auth Controller Tests › POST /api/auth/login" name="should return 404 for non-existent user" time="1.359">
     </testcase>
   </testsuite>
-  <testsuite name="Test Setup" errors="0" failures="0" skipped="0" timestamp="2025-05-26T14:33:56" time="2.39" tests="5">
-    <testcase classname="Test Setup" name="should setup the test environment" time="0.127">
+  <testsuite name="Test Setup" errors="0" failures="0" skipped="0" timestamp="2025-05-27T13:57:07" time="3.563" tests="6">
+    <testcase classname="Test Setup" name="should setup the test environment" time="0.183">
     </testcase>
-    <testcase classname="User Model Tests" name="should create &amp; save a user successfully" time="0.254">
+    <testcase classname="Post Model Tests" name="should create &amp; save a short post successfully" time="0.287">
     </testcase>
-    <testcase classname="User Model Tests" name="should fail to create a user without required fields" time="0.121">
+    <testcase classname="Post Model Tests" name="should create &amp; save a long post successfully" time="0.284">
     </testcase>
-    <testcase classname="User Model Tests" name="should fail for invalid email format" time="0.128">
+    <testcase classname="Post Model Tests" name="should fail to create a post without required fields" time="0.185">
     </testcase>
-    <testcase classname="User Model Tests" name="should fail for duplicate email" time="0.334">
+    <testcase classname="Post Model Tests" name="should fail to create a long post without a title" time="0.178">
     </testcase>
-  </testsuite>
-  <testsuite name="Test Setup" errors="0" failures="0" skipped="0" timestamp="2025-05-26T14:33:59" time="1.414" tests="1">
-    <testcase classname="Test Setup" name="should setup the test environment" time="0.002">
+    <testcase classname="Post Model Tests" name="should calculate reading time based on content length" time="0.569">
     </testcase>
   </testsuite>
-  <testsuite name="Test Setup" errors="0" failures="0" skipped="0" timestamp="2025-05-26T14:34:00" time="1.388" tests="1">
+  <testsuite name="Test Setup" errors="0" failures="0" skipped="0" timestamp="2025-05-27T13:57:11" time="2.304" tests="5">
+    <testcase classname="Test Setup" name="should setup the test environment" time="0.091">
+    </testcase>
+    <testcase classname="User Model Tests" name="should create &amp; save a user successfully" time="0.188">
+    </testcase>
+    <testcase classname="User Model Tests" name="should fail to create a user without required fields" time="0.094">
+    </testcase>
+    <testcase classname="User Model Tests" name="should fail for invalid email format" time="0.09">
+    </testcase>
+    <testcase classname="User Model Tests" name="should fail for duplicate email" time="0.268">
+    </testcase>
+  </testsuite>
+  <testsuite name="Test Setup" errors="0" failures="0" skipped="0" timestamp="2025-05-27T13:57:13" time="1.5" tests="1">
+    <testcase classname="Test Setup" name="should setup the test environment" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="Test Setup" errors="0" failures="0" skipped="0" timestamp="2025-05-27T13:57:14" time="2.572" tests="1">
     <testcase classname="Test Setup" name="should setup the test environment" time="0.001">
     </testcase>
   </testsuite>
